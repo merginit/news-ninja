@@ -1,3 +1,9 @@
 # News Ninja
 
-> made using Trae SOLO
+> base code written by Trae SOLO
+
+![website](website.png)
+
+## Demo
+
+![demo](demo.mp4)
