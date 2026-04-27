@@ -942,11 +942,12 @@ export const GameEngine: React.FC = () => {
       ctx.fillStyle = p.color;
 
       // Draw sharp squares
+      ctx.save();
       ctx.translate(p.x, p.y);
       ctx.rotate(p.life * 0.02); // Add a dynamic spin
       const s = p.size;
       ctx.fillRect(-s / 2, -s / 2, s, s);
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0); // Reset transform
+      ctx.restore();
     });
 
     // Draw floating combo texts
@@ -956,16 +957,23 @@ export const GameEngine: React.FC = () => {
       ctx.font = '900 48px "Anton", sans-serif';
       ctx.textAlign = 'center';
 
+      ctx.save();
+      ctx.translate(t.x, t.y);
+      if (isDeepFake) {
+        ctx.scale(-1, 1);
+      }
+
       // Draw brutalist shadow offset
-      ctx.fillText(t.text, t.x + 4, t.y + 4);
+      ctx.fillText(t.text, 4, 4);
 
       ctx.fillStyle = t.color;
-      ctx.fillText(t.text, t.x, t.y);
+      ctx.fillText(t.text, 0, 0);
 
       // White outline to pop
       ctx.strokeStyle = '#ffffff';
       ctx.lineWidth = 2;
-      ctx.strokeText(t.text, t.x, t.y);
+      ctx.strokeText(t.text, 0, 0);
+      ctx.restore();
     });
 
     ctx.globalAlpha = 1.0;
