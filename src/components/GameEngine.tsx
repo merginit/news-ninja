@@ -62,32 +62,25 @@ interface Point {
 export const GameEngine: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const {
-    score,
-    status,
-    popNews,
-    addScore,
-    loseLife,
-    endGame,
-    updateHighestCombo,
-    incrementClickbaits,
-    setDeathReason,
-    triggerRedactFreeze,
-    clearFreeze,
-    activatePaywall,
-    consumePaywall,
-    spawnTrendingZone,
-    clearTrendingZone,
-    activePen,
-    boss,
-    bossesDefeated,
-    spawnBoss,
-    damageBoss,
-    defeatBoss,
-    updateBossPosition,
-    updateBossAttackTime,
-  } = useGameStore();
-  const currentLevel = Math.floor(score / 500) + 1;
+  const status = useGameStore((state) => state.status);
+  const activePen = useGameStore((state) => state.activePen);
+  const currentLevel = useGameStore((state) => Math.floor(state.score / 500) + 1);
+  const popNews = useGameStore((state) => state.popNews);
+  const addScore = useGameStore((state) => state.addScore);
+  const loseLife = useGameStore((state) => state.loseLife);
+  const endGame = useGameStore((state) => state.endGame);
+  const updateHighestCombo = useGameStore((state) => state.updateHighestCombo);
+  const incrementClickbaits = useGameStore((state) => state.incrementClickbaits);
+  const setDeathReason = useGameStore((state) => state.setDeathReason);
+  const triggerRedactFreeze = useGameStore((state) => state.triggerRedactFreeze);
+  const clearFreeze = useGameStore((state) => state.clearFreeze);
+  const activatePaywall = useGameStore((state) => state.activatePaywall);
+  const consumePaywall = useGameStore((state) => state.consumePaywall);
+  const spawnTrendingZone = useGameStore((state) => state.spawnTrendingZone);
+  const clearTrendingZone = useGameStore((state) => state.clearTrendingZone);
+  const spawnBoss = useGameStore((state) => state.spawnBoss);
+  const damageBoss = useGameStore((state) => state.damageBoss);
+  const defeatBoss = useGameStore((state) => state.defeatBoss);
   const previousLevelRef = useRef(1);
   const statusRef = useRef(status);
 
@@ -116,6 +109,12 @@ export const GameEngine: React.FC = () => {
   const viewportRef = useRef({ w: 0, h: 0 });
   const noiseCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const noisePatternRef = useRef<CanvasPattern | null>(null);
+  const bgCacheRef = useRef<{ w: number; h: number; level: number; gradient: CanvasGradient | null }>({
+    w: 0,
+    h: 0,
+    level: 0,
+    gradient: null,
+  });
 
   useEffect(() => {
     statusRef.current = status;
@@ -566,29 +565,38 @@ export const GameEngine: React.FC = () => {
       ctx.scale(-1, 1);
     }
 
-    const bg = ctx.createRadialGradient(w * 0.2, h * 0.12, 0, w * 0.25, h * 0.22, Math.max(w, h));
+    if (
+      bgCacheRef.current.w !== w ||
+      bgCacheRef.current.h !== h ||
+      bgCacheRef.current.level !== currentLevel ||
+      !bgCacheRef.current.gradient
+    ) {
+      const bg = ctx.createRadialGradient(w * 0.2, h * 0.12, 0, w * 0.25, h * 0.22, Math.max(w, h));
 
-    // Shift colors based on level (1 to 5+)
-    let color1 = 'rgba(59, 130, 246, 0.14)'; // blue
-    let color2 = 'rgba(251, 191, 36, 0.06)'; // yellow
-    let color3 = 'rgba(0, 0, 0, 0.01)'; // Slight non-zero alpha to prevent harsh cutoff
+      // Shift colors based on level (1 to 5+)
+      let color1 = 'rgba(59, 130, 246, 0.14)'; // blue
+      let color2 = 'rgba(251, 191, 36, 0.06)'; // yellow
+      let color3 = 'rgba(0, 0, 0, 0.01)'; // Slight non-zero alpha to prevent harsh cutoff
 
-    if (currentLevel === 2) {
-      color1 = 'rgba(147, 51, 234, 0.15)'; // purple
-      color2 = 'rgba(249, 115, 22, 0.08)'; // orange
-    } else if (currentLevel === 3) {
-      color1 = 'rgba(220, 38, 38, 0.15)'; // red
-      color2 = 'rgba(234, 88, 12, 0.1)'; // dark orange
-    } else if (currentLevel >= 4) {
-      color1 = 'rgba(153, 27, 27, 0.2)'; // dark red
-      color2 = 'rgba(0, 0, 0, 0.15)'; // blackish
-      color3 = 'rgba(0, 0, 0, 0.05)';
+      if (currentLevel === 2) {
+        color1 = 'rgba(147, 51, 234, 0.15)'; // purple
+        color2 = 'rgba(249, 115, 22, 0.08)'; // orange
+      } else if (currentLevel === 3) {
+        color1 = 'rgba(220, 38, 38, 0.15)'; // red
+        color2 = 'rgba(234, 88, 12, 0.1)'; // dark orange
+      } else if (currentLevel >= 4) {
+        color1 = 'rgba(153, 27, 27, 0.2)'; // dark red
+        color2 = 'rgba(0, 0, 0, 0.15)'; // blackish
+        color3 = 'rgba(0, 0, 0, 0.05)';
+      }
+
+      bg.addColorStop(0, color1);
+      bg.addColorStop(0.55, color2);
+      bg.addColorStop(1, color3);
+      bgCacheRef.current = { w, h, level: currentLevel, gradient: bg };
     }
-
-    bg.addColorStop(0, color1);
-    bg.addColorStop(0.55, color2);
-    bg.addColorStop(1, color3);
-    ctx.fillStyle = bg;
+    
+    ctx.fillStyle = bgCacheRef.current.gradient!;
     ctx.fillRect(0, 0, w, h);
 
     if (noiseCanvasRef.current) {
@@ -622,16 +630,18 @@ export const GameEngine: React.FC = () => {
     }
 
     // Draw Projectiles
-    ctx.strokeStyle = '#00ffff';
-    ctx.lineWidth = 4;
-    projectilesRef.current.forEach((p) => {
-      const currentX = p.x + (p.targetX - p.x) * p.progress;
-      const currentY = p.y + (p.targetY - p.y) * p.progress;
+    if (projectilesRef.current.length > 0) {
+      ctx.strokeStyle = '#00ffff';
+      ctx.lineWidth = 4;
       ctx.beginPath();
-      ctx.moveTo(p.x, p.y);
-      ctx.lineTo(currentX, currentY);
+      projectilesRef.current.forEach((p) => {
+        const currentX = p.x + (p.targetX - p.x) * p.progress;
+        const currentY = p.y + (p.targetY - p.y) * p.progress;
+        ctx.moveTo(p.x, p.y);
+        ctx.lineTo(currentX, currentY);
+      });
       ctx.stroke();
-    });
+    }
 
     activeNewsRef.current.forEach((item) => {
       if (!item.canvasElement) return;
@@ -932,12 +942,11 @@ export const GameEngine: React.FC = () => {
       ctx.fillStyle = p.color;
 
       // Draw sharp squares
-      ctx.save();
       ctx.translate(p.x, p.y);
       ctx.rotate(p.life * 0.02); // Add a dynamic spin
       const s = p.size;
       ctx.fillRect(-s / 2, -s / 2, s, s);
-      ctx.restore();
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0); // Reset transform
     });
 
     // Draw floating combo texts
@@ -1488,6 +1497,7 @@ export const GameEngine: React.FC = () => {
   useEffect(() => {
     reqRef.current = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(reqRef.current);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status]);
 
   useEffect(() => {
