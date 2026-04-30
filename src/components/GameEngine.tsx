@@ -976,6 +976,26 @@ export const GameEngine: React.FC = () => {
       ctx.restore();
     });
 
+    if (state.isPaused) {
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+      ctx.fillRect(0, 0, w, h);
+      
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '900 80px "Anton", sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      
+      if (isDeepFake) {
+        ctx.save();
+        ctx.translate(w, 0);
+        ctx.scale(-1, 1);
+        ctx.fillText('PAUSED', w / 2, h / 2);
+        ctx.restore();
+      } else {
+        ctx.fillText('PAUSED', w / 2, h / 2);
+      }
+    }
+
     ctx.globalAlpha = 1.0;
   };
 
@@ -1481,7 +1501,7 @@ export const GameEngine: React.FC = () => {
         endGame();
       }
 
-      if (!isFrozen) {
+      if (!isFrozen && !state.isPaused) {
         spawnNews(time);
         updatePhysics();
         checkSlices();

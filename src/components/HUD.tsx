@@ -6,6 +6,8 @@ import CardsHeart from '~icons/mdi/cards-heart';
 import HeartOutline from '~icons/mdi/heart-outline';
 import VolumeHigh from '~icons/mdi/volume-high';
 import VolumeOff from '~icons/mdi/volume-off';
+import Pause from '~icons/mdi/pause';
+import Play from '~icons/mdi/play';
 import { audio } from '../utils/audio';
 
 export const HUD: React.FC = () => {
@@ -17,6 +19,8 @@ export const HUD: React.FC = () => {
     activateFactCheck,
     status,
     paywallShields,
+    isPaused,
+    togglePause,
   } = useGameStore();
   const [now, setNow] = useState(Date.now());
   const [isMuted, setIsMuted] = useState(audio.getMuted());
@@ -67,6 +71,12 @@ export const HUD: React.FC = () => {
         )}
 
         <div className="flex gap-4 ml-auto items-center pointer-events-auto">
+          <button
+            onClick={togglePause}
+            className="bg-white border-4 border-black w-14 h-14 shadow-[8px_8px_0px_0px_var(--nn-ink)] flex items-center justify-center hover:bg-gray-200 transition-colors"
+          >
+            {isPaused ? <Play className="w-8 h-8" /> : <Pause className="w-8 h-8" />}
+          </button>
           <button
             onClick={toggleMute}
             className="bg-white border-4 border-black w-14 h-14 shadow-[8px_8px_0px_0px_var(--nn-ink)] flex items-center justify-center hover:bg-gray-200 transition-colors"

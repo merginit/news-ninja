@@ -45,7 +45,9 @@ interface GameState {
   boss: BossState | null;
   bossesDefeated: number;
   customFeedUrl: string | null;
+  isPaused: boolean;
   setCustomFeedUrl: (url: string | null) => void;
+  togglePause: () => void;
   startGame: () => void;
   endGame: () => void;
   addScore: (points: number) => void;
@@ -103,8 +105,10 @@ export const useGameStore = create<GameState>((set, get) => ({
   boss: null,
   bossesDefeated: 0,
   customFeedUrl: null,
+  isPaused: false,
 
   setCustomFeedUrl: (url) => set({ customFeedUrl: url, newsQueue: [] }),
+  togglePause: () => set((state) => ({ isPaused: !state.isPaused })),
 
   startGame: () =>
     set({
@@ -127,6 +131,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       lastTrendingZoneTime: Date.now(),
       boss: null,
       bossesDefeated: 0,
+      isPaused: false,
     }),
 
   endGame: () => set({ status: 'gameover' }),
@@ -199,6 +204,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       paywallShields: 0,
       trendingZone: null,
       lastTrendingZoneTime: 0,
+      isPaused: false,
     }),
 
   triggerEchoChamber: () =>
