@@ -8,6 +8,7 @@ import VolumeHigh from '~icons/mdi/volume-high';
 import VolumeOff from '~icons/mdi/volume-off';
 import Pause from '~icons/mdi/pause';
 import Play from '~icons/mdi/play';
+import Refresh from '~icons/mdi/refresh';
 import { audio } from '../utils/audio';
 
 export const HUD: React.FC = () => {
@@ -21,17 +22,42 @@ export const HUD: React.FC = () => {
     paywallShields,
     isPaused,
     togglePause,
+    startGame,
+    pauseStartTime,
   } = useGameStore();
-  const [now, setNow] = useState(Date.now());
+  const [realNow, setRealNow] = useState(Date.now());
+  const now = isPaused && pauseStartTime ? pauseStartTime : realNow;
   const [isMuted, setIsMuted] = useState(audio.getMuted());
+  const [showRestartModal, setShowRestartModal] = useState(false);
+  const [wasPaused, setWasPaused] = useState(false);
 
   const toggleMute = () => {
     setIsMuted(audio.toggleMute());
   };
 
+  const handleRestartClick = () => {
+    setWasPaused(isPaused);
+    if (!isPaused) {
+      togglePause();
+    }
+    setShowRestartModal(true);
+  };
+
+  const confirmRestart = () => {
+    setShowRestartModal(false);
+    startGame();
+  };
+
+  const cancelRestart = () => {
+    setShowRestartModal(false);
+    if (!wasPaused) {
+      togglePause();
+    }
+  };
+
   useEffect(() => {
     if (status !== 'playing') return;
-    const interval = setInterval(() => setNow(Date.now()), 100);
+    const interval = setInterval(() => setRealNow(Date.now()), 100);
     return () => clearInterval(interval);
   }, [status]);
 
@@ -72,14 +98,23 @@ export const HUD: React.FC = () => {
 
         <div className="flex gap-4 ml-auto items-center pointer-events-auto">
           <button
+            onClick={handleRestartClick}
+            className="bg-white border-4 border-black w-14 h-14 shadow-[8px_8px_0px_0px_var(--nn-ink)] flex items-center justify-center hover:bg-gray-200 transition-colors"
+            title="Restart Game"
+          >
+            <Refresh className="w-8 h-8" />
+          </button>
+          <button
             onClick={togglePause}
             className="bg-white border-4 border-black w-14 h-14 shadow-[8px_8px_0px_0px_var(--nn-ink)] flex items-center justify-center hover:bg-gray-200 transition-colors"
+            title={isPaused ? "Resume" : "Pause"}
           >
             {isPaused ? <Play className="w-8 h-8" /> : <Pause className="w-8 h-8" />}
           </button>
           <button
             onClick={toggleMute}
             className="bg-white border-4 border-black w-14 h-14 shadow-[8px_8px_0px_0px_var(--nn-ink)] flex items-center justify-center hover:bg-gray-200 transition-colors"
+            title={isMuted ? "Unmute" : "Mute"}
           >
             {isMuted ? <VolumeOff className="w-8 h-8" /> : <VolumeHigh className="w-8 h-8" />}
           </button>
@@ -125,6 +160,29 @@ export const HUD: React.FC = () => {
               <span className="sm:hidden">{isActive ? 'CHECKING...' : 'FACT CHECK'}</span>
             </span>
           </button>
+        </div>
+      )}
+
+      {showRestartModal && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/80 pointer-events-auto">
+          <div className="bg-white border-4 border-black p-8 max-w-sm w-full mx-4 shadow-[12px_12px_0px_0px_var(--nn-danger)] flex flex-col items-center text-center">
+            <h2 className="text-3xl font-black uppercase mb-4 [font-family:var(--nn-display)] text-black">Restart Game?</h2>
+            <p className="mb-8 font-bold text-gray-600 [font-family:var(--nn-mono)] text-sm">All your current progress will be lost.</p>
+            <div className="flex gap-4 w-full">
+              <button
+                onClick={cancelRestart}
+                className="flex-1 border-4 border-black py-3 font-bold uppercase hover:bg-gray-200 transition-colors text-black"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmRestart}
+                className="flex-1 bg-[var(--nn-danger)] text-white border-4 border-black py-3 font-bold uppercase hover:bg-red-600 transition-colors"
+              >
+                Restart
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

@@ -24,6 +24,7 @@ export interface BossState {
 
 interface GameState {
   status: 'start' | 'playing' | 'gameover';
+  gameId: number;
   score: number;
   lives: number;
   newsQueue: NewsItemData[];
@@ -49,6 +50,7 @@ interface GameState {
   bossesDefeated: number;
   customFeedUrl: string | null;
   isPaused: boolean;
+  pauseStartTime: number | null;
   unlockedAchievements: string[];
   recentAchievements: Achievement[];
   dismissAchievementToast: (id: string) => void;
@@ -89,6 +91,7 @@ interface GameState {
 
 export const useGameStore = create<GameState>((set, get) => ({
   status: 'start',
+  gameId: 0,
   score: 0,
   lives: 3,
   newsQueue: [],
@@ -114,6 +117,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   bossesDefeated: 0,
   customFeedUrl: null,
   isPaused: false,
+  pauseStartTime: null,
   unlockedAchievements: getUnlockedAchievements(),
   recentAchievements: [],
 
@@ -121,11 +125,45 @@ export const useGameStore = create<GameState>((set, get) => ({
     set((state) => ({ recentAchievements: state.recentAchievements.filter((a) => a.id !== id) })),
 
   setCustomFeedUrl: (url) => set({ customFeedUrl: url, newsQueue: [] }),
-  togglePause: () => set((state) => ({ isPaused: !state.isPaused })),
+  togglePause: () => set((state) => {
+    const now = Date.now();
+    if (state.isPaused) {
+      const pauseDuration = state.pauseStartTime ? now - state.pauseStartTime : 0;
+      
+      const newTrendingZone = state.trendingZone 
+        ? { ...state.trendingZone, activeUntil: state.trendingZone.activeUntil + pauseDuration }
+        : null;
+
+      const newBoss = state.boss
+        ? { ...state.boss, lastAttackTime: state.boss.lastAttackTime + pauseDuration }
+        : null;
+
+      return {
+        isPaused: false,
+        pauseStartTime: null,
+        factCheckActiveUntil: state.factCheckActiveUntil > 0 ? state.factCheckActiveUntil + pauseDuration : 0,
+        factCheckReadyAt: state.factCheckReadyAt > 0 ? state.factCheckReadyAt + pauseDuration : 0,
+        echoChamberActiveUntil: state.echoChamberActiveUntil > 0 ? state.echoChamberActiveUntil + pauseDuration : 0,
+        lastEchoChamberTime: state.lastEchoChamberTime > 0 ? state.lastEchoChamberTime + pauseDuration : 0,
+        deepFakeActiveUntil: state.deepFakeActiveUntil > 0 ? state.deepFakeActiveUntil + pauseDuration : 0,
+        lastDeepFakeTime: state.lastDeepFakeTime > 0 ? state.lastDeepFakeTime + pauseDuration : 0,
+        freezeActiveUntil: state.freezeActiveUntil > 0 ? state.freezeActiveUntil + pauseDuration : 0,
+        lastTrendingZoneTime: state.lastTrendingZoneTime > 0 ? state.lastTrendingZoneTime + pauseDuration : 0,
+        trendingZone: newTrendingZone,
+        boss: newBoss,
+      };
+    } else {
+      return {
+        isPaused: true,
+        pauseStartTime: now,
+      };
+    }
+  }),
 
   startGame: () =>
-    set({
+    set((state) => ({
       status: 'playing',
+      gameId: state.gameId + 1,
       score: 0,
       lives: 3,
       factCheckActiveUntil: 0,
@@ -147,7 +185,8 @@ export const useGameStore = create<GameState>((set, get) => ({
       boss: null,
       bossesDefeated: 0,
       isPaused: false,
-    }),
+      pauseStartTime: null,
+    })),
 
   endGame: () => set({ status: 'gameover' }),
 
@@ -260,6 +299,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       trendingZone: null,
       lastTrendingZoneTime: 0,
       isPaused: false,
+      pauseStartTime: null,
     }),
 
   triggerEchoChamber: () =>

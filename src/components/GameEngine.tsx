@@ -63,6 +63,7 @@ export const GameEngine: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const status = useGameStore((state) => state.status);
+  const gameId = useGameStore((state) => state.gameId);
   const activePen = useGameStore((state) => state.activePen);
   const currentLevel = useGameStore((state) => Math.floor(state.score / 500) + 1);
   const popNews = useGameStore((state) => state.popNews);
@@ -104,6 +105,7 @@ export const GameEngine: React.FC = () => {
   }
   const floatingTextsRef = useRef<FloatingText[]>([]);
   const lastSpawnTimeRef = useRef(0);
+  const pauseStartTimeRef = useRef(0);
   const reqRef = useRef<number>(0);
   const dprRef = useRef(1);
   const viewportRef = useRef({ w: 0, h: 0 });
@@ -552,8 +554,8 @@ export const GameEngine: React.FC = () => {
     const { w, h } = viewportRef.current;
     const dpr = dprRef.current;
 
-    const now = Date.now();
     const state = useGameStore.getState();
+    const now = state.isPaused && state.pauseStartTime ? state.pauseStartTime : Date.now();
     const isFactCheck = now < state.factCheckActiveUntil;
     const isDeepFake = now < state.deepFakeActiveUntil;
 
@@ -620,6 +622,9 @@ export const GameEngine: React.FC = () => {
       // Fact check watermark
       ctx.save();
       ctx.translate(w / 2, h / 2);
+      if (isDeepFake) {
+        ctx.scale(-1, 1);
+      }
       ctx.rotate(-Math.PI / 8);
       ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
       ctx.font = '900 120px "Anton", sans-serif';
@@ -653,6 +658,10 @@ export const GameEngine: React.FC = () => {
         ctx.rotate((half.rotation * Math.PI) / 180);
 
         ctx.translate(-half.cx, -half.cy);
+        
+        if (isDeepFake) {
+          ctx.scale(-1, 1);
+        }
 
         ctx.beginPath();
         if (clipPath.length > 0) {
@@ -689,6 +698,9 @@ export const GameEngine: React.FC = () => {
         ctx.save();
         ctx.translate(item.x, item.y);
         ctx.rotate((item.rotation * Math.PI) / 180);
+        if (isDeepFake) {
+          ctx.scale(-1, 1);
+        }
         ctx.drawImage(
           item.canvasElement,
           -item.width / 2,
@@ -832,11 +844,17 @@ export const GameEngine: React.FC = () => {
       }
 
       // Dramatic text warning in the middle of the fog
+      ctx.save();
+      if (isDeepFake) {
+        ctx.translate(w, 0);
+        ctx.scale(-1, 1);
+      }
       ctx.fillStyle = 'rgba(255, 42, 0, 0.3)';
       ctx.font = '900 60px "Anton", sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText('ECHO CHAMBER ACTIVE', cx, cy - 100);
+      ctx.restore();
     }
 
     // Draw Boss
@@ -1516,11 +1534,28 @@ export const GameEngine: React.FC = () => {
       activeNewsRef.current = [];
       particlesRef.current = [];
       trailRef.current = [];
+      projectilesRef.current = [];
       floatingTextsRef.current = [];
       comboCountRef.current = 0;
       lastSpawnTimeRef.current = performance.now();
+      pauseStartTimeRef.current = 0;
     }
-  }, [status]);
+  }, [status, gameId]);
+
+  useEffect(() => {
+    const unsub = useGameStore.subscribe((state, prevState) => {
+      if (state.isPaused && !prevState.isPaused) {
+        pauseStartTimeRef.current = performance.now();
+      } else if (!state.isPaused && prevState.isPaused && pauseStartTimeRef.current > 0) {
+        const pauseDuration = performance.now() - pauseStartTimeRef.current;
+        lastSpawnTimeRef.current += pauseDuration;
+        trailRef.current.forEach(p => p.time += pauseDuration);
+        activeNewsRef.current.forEach(n => n.spawnTime += pauseDuration);
+        pauseStartTimeRef.current = 0;
+      }
+    });
+    return unsub;
+  }, []);
 
   useEffect(() => {
     reqRef.current = requestAnimationFrame(loop);
@@ -1568,7 +1603,9 @@ export const GameEngine: React.FC = () => {
   }, []);
 
   const getMappedX = (clientX: number) => {
-    const isDeepFake = Date.now() < useGameStore.getState().deepFakeActiveUntil;
+    const state = useGameStore.getState();
+    const now = state.isPaused && state.pauseStartTime ? state.pauseStartTime : Date.now();
+    const isDeepFake = now < state.deepFakeActiveUntil;
     if (isDeepFake && containerRef.current) {
       return containerRef.current.clientWidth - clientX;
     }
