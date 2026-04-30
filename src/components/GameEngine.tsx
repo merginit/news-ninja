@@ -107,6 +107,7 @@ export const GameEngine: React.FC = () => {
   const floatingTextsRef = useRef<FloatingText[]>([]);
   const lastSpawnTimeRef = useRef(0);
   const pauseStartTimeRef = useRef(0);
+  const adWaveRef = useRef({ active: false, count: 0, lastSpawn: 0 });
   const reqRef = useRef<number>(0);
   const dprRef = useRef(1);
   const viewportRef = useRef({ w: 0, h: 0 });
@@ -169,6 +170,7 @@ export const GameEngine: React.FC = () => {
     const isPaywall = data.type === 'paywall';
     const isTopSecret = data.type === 'top-secret';
     const isJackpot = data.type === 'jackpot';
+    const isAd = data.type === 'ad';
 
     // Magazine style solid backgrounds
     ctx.fillStyle = isBomb
@@ -185,12 +187,14 @@ export const GameEngine: React.FC = () => {
                 ? '#E6C280' // Manila folder
                 : isJackpot
                   ? '#FFD700' // Shiny gold
-                  : '#f4f0e6';
+                  : isAd
+                    ? '#FF1493' // Hot pink ad
+                    : '#f4f0e6';
     ctx.fillRect(0, 0, width, height);
 
     // Thick brutalist border
     ctx.lineWidth = 4;
-    ctx.strokeStyle = isClickbait ? '#ff2a00' : isPaywall ? '#166534' : isTopSecret ? '#8B6508' : isJackpot ? '#B8860B' : '#000000';
+    ctx.strokeStyle = isClickbait ? '#ff2a00' : isPaywall ? '#166534' : isTopSecret ? '#8B6508' : isJackpot ? '#B8860B' : isAd ? '#39FF14' : '#000000';
     ctx.strokeRect(2, 2, width - 4, height - 4);
 
     // Header separator line
@@ -313,6 +317,22 @@ export const GameEngine: React.FC = () => {
       ctx.restore();
 
       ctx.fillText('JACKPOT', width - 12, 12);
+      ctx.textAlign = 'left';
+    } else if (isAd) {
+      ctx.fillStyle = '#39FF14'; // Neon green
+      ctx.fillRect(width - 120, 4, 116, 28);
+      ctx.fillStyle = '#000000';
+      ctx.textAlign = 'right';
+      
+      ctx.save();
+      ctx.translate(width - 105, 9);
+      ctx.scale(0.8, 0.8);
+      // Megaphone path
+      const mdiMegaphone = new Path2D('M20 2v2h-2V2h2M8 4c-1.1 0-2 .9-2 2v6c0 1.1.9 2 2 2h3l-1 5h2l1.5-6h3.5v-1h-1.3c1.7-1.3 2.8-3.3 2.8-5.5V8c0-2.2-1.1-4.2-2.8-5.5H18V4h-1.5C14.7 2.7 12.4 2 10 2H8zm0 2h2c2.2 0 4.1.7 5.7 1.8L12 11H8V6zm14 0v2h-2V6h2m-1 4v2h-2v-2h2z');
+      ctx.fill(mdiMegaphone);
+      ctx.restore();
+
+      ctx.fillText('SPONSORED', width - 12, 12);
       ctx.textAlign = 'left';
     }
 
@@ -439,6 +459,98 @@ export const GameEngine: React.FC = () => {
       clearTrendingZone();
     }
 
+    // Ad Wave Trigger Logic (cooldown 30s)
+    if (now > adWaveRef.current.lastSpawn + 30000 && !adWaveRef.current.active) {
+      if (Math.random() < 0.003) { // Small chance per frame
+        adWaveRef.current = { active: true, count: 3 + Math.floor(Math.random() * 2), lastSpawn: now };
+        
+        // Announce it
+        if (containerRef.current) {
+          const { clientWidth, clientHeight } = containerRef.current;
+          floatingTextsRef.current.push({
+            id: Math.random().toString(36).substring(2, 9),
+            x: clientWidth / 2,
+            y: clientHeight / 2,
+            text: 'SPONSORED WAVE INCOMING!',
+            life: 2000,
+            maxLife: 2000,
+            color: '#39FF14',
+          });
+        }
+      }
+    }
+
+    // Ad Wave Spawning
+    if (adWaveRef.current.active) {
+      if (now - adWaveRef.current.lastSpawn > 400) {
+        adWaveRef.current.lastSpawn = now;
+        adWaveRef.current.count--;
+        if (adWaveRef.current.count <= 0) {
+          adWaveRef.current.active = false;
+        }
+
+        if (containerRef.current) {
+          const { clientWidth, clientHeight } = containerRef.current;
+          const startX = Math.random() * (clientWidth - 300) + 150;
+          const vyMultiplier = 1 + (currentLevel - 1) * 0.08;
+          const vy = (-18 - Math.random() * 4) * vyMultiplier;
+          const vx = (Math.random() - 0.5) * 4;
+
+          const adData = {
+            id: Math.random().toString(36).substring(2, 9),
+            type: 'ad',
+            title: 'ONE WEIRD TRICK TO WIN!',
+            source: 'PROMOTED',
+          };
+          const bombData = {
+            id: Math.random().toString(36).substring(2, 9),
+            type: 'bomb',
+            title: 'SPONSORED SATIRE',
+            source: 'THE ONION',
+          };
+
+          const cardWidth = 200;
+          const cardHeight = 100;
+          const bombWidth = 120;
+          const bombHeight = 120;
+
+          // Spawn AD
+          activeNewsRef.current.push({
+            id: Math.random().toString(36).substring(2, 9),
+            data: adData as any,
+            x: startX,
+            y: clientHeight + 100,
+            vx,
+            vy,
+            rotation: Math.random() * 360,
+            rotationSpeed: (Math.random() - 0.5) * 6,
+            width: cardWidth,
+            height: cardHeight,
+            sliced: false,
+            spawnTime: now,
+            canvasElement: createCardCanvas(adData as any, cardWidth, cardHeight),
+          });
+
+          // Spawn BOMB extremely close
+          activeNewsRef.current.push({
+            id: Math.random().toString(36).substring(2, 9),
+            data: bombData as any,
+            x: startX + (Math.random() > 0.5 ? 40 : -40), // close horizontally
+            y: clientHeight + 100 + (Math.random() * 20 - 10), // close vertically
+            vx: vx + (Math.random() - 0.5), // similar velocity
+            vy: vy + (Math.random() - 0.5),
+            rotation: Math.random() * 360,
+            rotationSpeed: (Math.random() - 0.5) * 6,
+            width: bombWidth,
+            height: bombHeight,
+            sliced: false,
+            spawnTime: now,
+            canvasElement: createCardCanvas(bombData as any, bombWidth, bombHeight),
+          });
+        }
+      }
+    }
+
     // Boss Trigger Logic
     const bossThreshold = (state.bossesDefeated + 1) * 2000;
     if (state.score >= bossThreshold && !state.boss) {
@@ -537,6 +649,12 @@ export const GameEngine: React.FC = () => {
       } else {
         const wasVyNegative = item.vy <= 0;
         item.vy += GRAVITY * timeScale;
+        
+        // Erratic movement for ADs
+        if (item.data.type === 'ad') {
+          item.vx += (Math.random() - 0.5) * 4;
+          item.vx = Math.max(-12, Math.min(12, item.vx));
+        }
         
         // Reveal Top Secret at apex
         if (item.data.type === 'top-secret' && item.vy > 0 && wasVyNegative) {
@@ -1139,6 +1257,7 @@ export const GameEngine: React.FC = () => {
     if (item.data.type === 'paywall') color = '#22c55e';
     if (item.data.type === 'top-secret') color = '#E6C280';
     if (item.data.type === 'jackpot') color = '#FFD700';
+    if (item.data.type === 'ad') color = '#39FF14';
 
     for (let i = 0; i < 20; i++) {
       particlesRef.current.push({
@@ -1246,6 +1365,10 @@ export const GameEngine: React.FC = () => {
       }
       if (item.data.type === 'jackpot') {
         basePoints = 200;
+        isPowerup = true;
+      }
+      if (item.data.type === 'ad') {
+        basePoints = 100;
         isPowerup = true;
       }
       if (item.data.type === 'clickbait') basePoints = 0; // clickbait itself gives 0, mini cards give points

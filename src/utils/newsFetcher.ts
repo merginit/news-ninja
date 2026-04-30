@@ -2,7 +2,7 @@ export interface NewsItemData {
   id: string;
   title: string;
   source: string;
-  type: 'real' | 'bomb' | 'breaking' | 'clickbait' | 'mini-clickbait' | 'paywall' | 'top-secret' | 'jackpot';
+  type: 'real' | 'bomb' | 'breaking' | 'clickbait' | 'mini-clickbait' | 'paywall' | 'top-secret' | 'jackpot' | 'ad';
   url?: string;
 }
 
