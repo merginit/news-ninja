@@ -40,6 +40,7 @@ interface ActiveNews {
     cx: number;
     cy: number;
   };
+  fromTopSecret?: boolean;
 }
 
 interface Particle {
@@ -166,6 +167,8 @@ export const GameEngine: React.FC = () => {
     const isClickbait = data.type === 'clickbait';
     const isMini = data.type === 'mini-clickbait';
     const isPaywall = data.type === 'paywall';
+    const isTopSecret = data.type === 'top-secret';
+    const isJackpot = data.type === 'jackpot';
 
     // Magazine style solid backgrounds
     ctx.fillStyle = isBomb
@@ -178,12 +181,16 @@ export const GameEngine: React.FC = () => {
             ? '#ff2a00'
             : isPaywall
               ? '#22c55e'
-              : '#f4f0e6';
+              : isTopSecret
+                ? '#E6C280' // Manila folder
+                : isJackpot
+                  ? '#FFD700' // Shiny gold
+                  : '#f4f0e6';
     ctx.fillRect(0, 0, width, height);
 
     // Thick brutalist border
     ctx.lineWidth = 4;
-    ctx.strokeStyle = isClickbait ? '#ff2a00' : isPaywall ? '#166534' : '#000000';
+    ctx.strokeStyle = isClickbait ? '#ff2a00' : isPaywall ? '#166534' : isTopSecret ? '#8B6508' : isJackpot ? '#B8860B' : '#000000';
     ctx.strokeRect(2, 2, width - 4, height - 4);
 
     // Header separator line
@@ -267,6 +274,45 @@ export const GameEngine: React.FC = () => {
       ctx.restore();
 
       ctx.fillText('PAYWALL', width - 12, 12);
+      ctx.textAlign = 'left';
+    } else if (isTopSecret) {
+      // Draw top secret folder tab
+      ctx.fillStyle = '#E6C280';
+      ctx.fillRect(0, -20, 80, 20);
+      ctx.strokeStyle = '#8B6508';
+      ctx.strokeRect(0, -20, 80, 22); // slight overlap
+      ctx.fillStyle = '#8B6508';
+      ctx.font = 'bold 10px "JetBrains Mono", monospace';
+      ctx.fillText('CONFIDENTIAL', 4, -16);
+      
+      // Top Secret Stamp
+      ctx.save();
+      ctx.translate(width / 2, height / 2);
+      ctx.rotate(-Math.PI / 6); // -30 degrees
+      ctx.fillStyle = 'rgba(255, 42, 0, 0.8)';
+      ctx.strokeStyle = 'rgba(255, 42, 0, 0.8)';
+      ctx.lineWidth = 3;
+      ctx.font = '900 24px "Anton", sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.strokeRect(-70, -20, 140, 40);
+      ctx.fillText('TOP SECRET', 0, 0);
+      ctx.restore();
+    } else if (isJackpot) {
+      ctx.fillStyle = '#000000';
+      ctx.fillRect(width - 120, 4, 116, 28);
+      ctx.fillStyle = '#FFD700';
+      ctx.textAlign = 'right';
+      
+      ctx.save();
+      ctx.translate(width - 105, 9);
+      ctx.scale(0.8, 0.8);
+      // Dollar sign path
+      const mdiCurrencyUsd = new Path2D('M7 15h2c0 1.08 1.37 2 3 2s3-.92 3-2c0-1.1-1.04-1.5-3.24-2.03C9.64 12.44 7 11.78 7 9c0-2.38 1.91-4.16 4-4.64V3h2v1.32C15.22 4.8 17 6.64 17 9h-2c0-1.12-1.33-2-3-2s-3 .92-3 2c0 1.1 1.04 1.5 3.24 2.03C14.36 11.56 17 12.22 17 15c0 2.38-1.91 4.16-4 4.64V21h-2v-1.32C8.78 19.2 7 17.36 7 15z');
+      ctx.fill(mdiCurrencyUsd);
+      ctx.restore();
+
+      ctx.fillText('JACKPOT', width - 12, 12);
       ctx.textAlign = 'left';
     }
 
@@ -489,7 +535,43 @@ export const GameEngine: React.FC = () => {
           activeNewsRef.current.splice(i, 1);
         }
       } else {
+        const wasVyNegative = item.vy <= 0;
         item.vy += GRAVITY * timeScale;
+        
+        // Reveal Top Secret at apex
+        if (item.data.type === 'top-secret' && item.vy > 0 && wasVyNegative) {
+          item.fromTopSecret = true;
+          
+          const rand = Math.random();
+          if (rand < 0.33) {
+            item.data.type = 'bomb';
+            item.data.title = 'SATIRE BOMB REVEALED';
+          } else if (rand < 0.66) {
+            item.data.type = 'paywall';
+            item.data.title = 'FREE SHIELD';
+          } else {
+            item.data.type = 'jackpot';
+            item.data.title = 'MASSIVE LEAK';
+          }
+          item.data.source = 'WHISTLEBLOWER';
+          item.canvasElement = createCardCanvas(item.data, item.width, item.height);
+          
+          audio.playPowerup();
+          
+          for (let p = 0; p < 15; p++) {
+            particlesRef.current.push({
+              x: item.x,
+              y: item.y,
+              vx: (Math.random() - 0.5) * 10,
+              vy: (Math.random() - 0.5) * 10,
+              life: 500 + Math.random() * 500,
+              maxLife: 1000,
+              color: '#FFD700',
+              size: Math.random() * 6 + 4,
+            });
+          }
+        }
+        
         item.x += item.vx * timeScale;
         item.y += item.vy * timeScale;
         item.rotation += item.rotationSpeed * timeScale;
@@ -513,11 +595,14 @@ export const GameEngine: React.FC = () => {
             !item.sliced &&
             (item.data.type === 'real' ||
               item.data.type === 'breaking' ||
-              item.data.type === 'clickbait')
+              item.data.type === 'clickbait' ||
+              item.data.type === 'jackpot')
           ) {
-            if (item.data.type === 'clickbait') incrementClickbaits();
-            audio.playDrop();
-            loseLife();
+            if (!item.fromTopSecret) {
+              if (item.data.type === 'clickbait') incrementClickbaits();
+              audio.playDrop();
+              loseLife();
+            }
           }
           activeNewsRef.current.splice(i, 1);
         }
@@ -1052,6 +1137,8 @@ export const GameEngine: React.FC = () => {
     if (item.data.type === 'bomb') color = '#ff2a00';
     if (item.data.type === 'breaking') color = '#ffb800'; // Gold particles
     if (item.data.type === 'paywall') color = '#22c55e';
+    if (item.data.type === 'top-secret') color = '#E6C280';
+    if (item.data.type === 'jackpot') color = '#FFD700';
 
     for (let i = 0; i < 20; i++) {
       particlesRef.current.push({
@@ -1155,6 +1242,10 @@ export const GameEngine: React.FC = () => {
 
       if (item.data.type === 'breaking') {
         basePoints = 50;
+        isPowerup = true;
+      }
+      if (item.data.type === 'jackpot') {
+        basePoints = 200;
         isPowerup = true;
       }
       if (item.data.type === 'clickbait') basePoints = 0; // clickbait itself gives 0, mini cards give points

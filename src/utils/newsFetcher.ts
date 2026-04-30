@@ -2,7 +2,7 @@ export interface NewsItemData {
   id: string;
   title: string;
   source: string;
-  type: 'real' | 'bomb' | 'breaking' | 'clickbait' | 'mini-clickbait' | 'paywall';
+  type: 'real' | 'bomb' | 'breaking' | 'clickbait' | 'mini-clickbait' | 'paywall' | 'top-secret' | 'jackpot';
   url?: string;
 }
 
@@ -89,15 +89,19 @@ export async function fetchNewsFeeds(customFeedUrl?: string | null): Promise<New
 
   await Promise.allSettled(fetchPromises);
 
-  // Randomly upgrade some real news to breaking/clickbait/paywall
+  // Randomly upgrade some real news to breaking/clickbait/paywall/top-secret
   allNews.forEach((item) => {
     if (item.type === 'real') {
       const rand = Math.random();
-      if (rand < 0.15) {
+      if (rand < 0.08) {
+        item.type = 'top-secret';
+        item.title = 'CLASSIFIED INFORMATION';
+        item.source = 'ANONYMOUS';
+      } else if (rand < 0.20) {
         item.type = 'breaking';
-      } else if (rand < 0.25) {
+      } else if (rand < 0.30) {
         item.type = 'clickbait';
-      } else if (rand < 0.3) {
+      } else if (rand < 0.35) {
         item.type = 'paywall';
       }
     }
