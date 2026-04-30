@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { fetchNewsFeeds, NewsItemData } from '../utils/newsFetcher';
 import { PenStyle, PENS } from '../utils/highScores';
+import { Achievement, ACHIEVEMENTS, getUnlockedAchievements, saveUnlockedAchievement } from '../utils/achievements';
 
 export interface TrendingZone {
   x: number;
@@ -39,6 +40,8 @@ interface GameState {
   freezeActiveUntil: number;
   redactedItem: { x: number; y: number; rotation: number; width: number; height: number } | null;
   paywallShields: number;
+  paywallsConsumed: number;
+  factChecksUsed: number;
   trendingZone: TrendingZone | null;
   lastTrendingZoneTime: number;
   activePen: PenStyle;
@@ -46,6 +49,9 @@ interface GameState {
   bossesDefeated: number;
   customFeedUrl: string | null;
   isPaused: boolean;
+  unlockedAchievements: string[];
+  recentAchievements: Achievement[];
+  dismissAchievementToast: (id: string) => void;
   setCustomFeedUrl: (url: string | null) => void;
   togglePause: () => void;
   startGame: () => void;
@@ -99,6 +105,8 @@ export const useGameStore = create<GameState>((set, get) => ({
   freezeActiveUntil: 0,
   redactedItem: null,
   paywallShields: 0,
+  paywallsConsumed: 0,
+  factChecksUsed: 0,
   trendingZone: null,
   lastTrendingZoneTime: 0,
   activePen: PENS[0],
@@ -106,6 +114,11 @@ export const useGameStore = create<GameState>((set, get) => ({
   bossesDefeated: 0,
   customFeedUrl: null,
   isPaused: false,
+  unlockedAchievements: getUnlockedAchievements(),
+  recentAchievements: [],
+
+  dismissAchievementToast: (id) =>
+    set((state) => ({ recentAchievements: state.recentAchievements.filter((a) => a.id !== id) })),
 
   setCustomFeedUrl: (url) => set({ customFeedUrl: url, newsQueue: [] }),
   togglePause: () => set((state) => ({ isPaused: !state.isPaused })),
@@ -127,6 +140,8 @@ export const useGameStore = create<GameState>((set, get) => ({
       freezeActiveUntil: 0,
       redactedItem: null,
       paywallShields: 0,
+      paywallsConsumed: 0,
+      factChecksUsed: 0,
       trendingZone: null,
       lastTrendingZoneTime: Date.now(),
       boss: null,
@@ -136,7 +151,28 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   endGame: () => set({ status: 'gameover' }),
 
-  addScore: (points) => set((state) => ({ score: state.score + points })),
+  addScore: (points) =>
+    set((state) => {
+      const newScore = state.score + points;
+      
+      const checkUnlock = (id: string, condition: boolean) => {
+        if (condition && !state.unlockedAchievements.includes(id)) {
+          const achievement = ACHIEVEMENTS.find((a) => a.id === id);
+          if (achievement) {
+            saveUnlockedAchievement(id);
+            state.unlockedAchievements.push(id);
+            state.recentAchievements.push(achievement);
+          }
+        }
+      };
+
+      checkUnlock('intern_no_more', newScore >= 1000);
+      checkUnlock('gossip_columnist', newScore >= 5000);
+      checkUnlock('pulitzer_prize', newScore >= 10000);
+      checkUnlock('legendary_anchor', newScore >= 50000);
+
+      return { score: newScore, unlockedAchievements: [...state.unlockedAchievements], recentAchievements: [...state.recentAchievements] };
+    }),
 
   loseLife: () =>
     set((state) => {
@@ -151,9 +187,26 @@ export const useGameStore = create<GameState>((set, get) => ({
     set((state) => {
       const now = Date.now();
       if (now < state.factCheckReadyAt || state.status !== 'playing') return state;
+      
+      const newFactChecks = state.factChecksUsed + 1;
+      const unlocked = [...state.unlockedAchievements];
+      const recent = [...state.recentAchievements];
+
+      if (newFactChecks >= 5 && !unlocked.includes('fact_checker')) {
+        const achievement = ACHIEVEMENTS.find((a) => a.id === 'fact_checker');
+        if (achievement) {
+          saveUnlockedAchievement('fact_checker');
+          unlocked.push('fact_checker');
+          recent.push(achievement);
+        }
+      }
+
       return {
         factCheckActiveUntil: now + 3000,
         factCheckReadyAt: now + 15000,
+        factChecksUsed: newFactChecks,
+        unlockedAchievements: unlocked,
+        recentAchievements: recent,
       };
     }),
 
@@ -202,6 +255,8 @@ export const useGameStore = create<GameState>((set, get) => ({
       freezeActiveUntil: 0,
       redactedItem: null,
       paywallShields: 0,
+      paywallsConsumed: 0,
+      factChecksUsed: 0,
       trendingZone: null,
       lastTrendingZoneTime: 0,
       isPaused: false,
@@ -239,12 +294,33 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   activatePaywall: () => set((state) => ({ paywallShields: state.paywallShields + 1 })),
   consumePaywall: () => {
-    const { paywallShields } = get();
-    if (paywallShields > 0) {
-      set({ paywallShields: paywallShields - 1 });
-      return true;
-    }
-    return false;
+    let consumed = false;
+    set((state) => {
+      if (state.paywallShields > 0) {
+        consumed = true;
+        const newConsumed = state.paywallsConsumed + 1;
+        const unlocked = [...state.unlockedAchievements];
+        const recent = [...state.recentAchievements];
+
+        if (newConsumed >= 3 && !unlocked.includes('paywall_buster')) {
+          const achievement = ACHIEVEMENTS.find((a) => a.id === 'paywall_buster');
+          if (achievement) {
+            saveUnlockedAchievement('paywall_buster');
+            unlocked.push('paywall_buster');
+            recent.push(achievement);
+          }
+        }
+
+        return { 
+          paywallShields: state.paywallShields - 1,
+          paywallsConsumed: newConsumed,
+          unlockedAchievements: unlocked,
+          recentAchievements: recent,
+        };
+      }
+      return state;
+    });
+    return consumed;
   },
 
   spawnTrendingZone: (zone) => set({ trendingZone: zone, lastTrendingZoneTime: Date.now() }),
@@ -253,9 +329,48 @@ export const useGameStore = create<GameState>((set, get) => ({
   setPen: (pen) => set({ activePen: pen }),
 
   updateHighestCombo: (combo) =>
-    set((state) => ({ highestCombo: Math.max(state.highestCombo, combo) })),
+    set((state) => {
+      const newCombo = Math.max(state.highestCombo, combo);
+      
+      if (newCombo >= 10 && !state.unlockedAchievements.includes('combo_master')) {
+        const achievement = ACHIEVEMENTS.find((a) => a.id === 'combo_master');
+        if (achievement) {
+          saveUnlockedAchievement('combo_master');
+          state.unlockedAchievements.push('combo_master');
+          state.recentAchievements.push(achievement);
+        }
+      }
+      if (newCombo >= 25 && !state.unlockedAchievements.includes('godlike_combo')) {
+        const achievement = ACHIEVEMENTS.find((a) => a.id === 'godlike_combo');
+        if (achievement) {
+          saveUnlockedAchievement('godlike_combo');
+          state.unlockedAchievements.push('godlike_combo');
+          state.recentAchievements.push(achievement);
+        }
+      }
+      return { 
+        highestCombo: newCombo,
+        unlockedAchievements: [...state.unlockedAchievements],
+        recentAchievements: [...state.recentAchievements],
+      };
+    }),
   incrementClickbaits: () =>
-    set((state) => ({ clickbaitsFallenFor: state.clickbaitsFallenFor + 1 })),
+    set((state) => {
+      const newClickbaits = state.clickbaitsFallenFor + 1;
+      
+      if (newClickbaits >= 5 && !state.unlockedAchievements.includes('fake_news_victim')) {
+        const achievement = ACHIEVEMENTS.find((a) => a.id === 'fake_news_victim');
+        if (achievement) {
+          saveUnlockedAchievement('fake_news_victim');
+          return {
+            clickbaitsFallenFor: newClickbaits,
+            unlockedAchievements: [...state.unlockedAchievements, 'fake_news_victim'],
+            recentAchievements: [...state.recentAchievements, achievement],
+          };
+        }
+      }
+      return { clickbaitsFallenFor: newClickbaits };
+    }),
   setDeathReason: (reason) => set({ deathReason: reason }),
 
   spawnBoss: (canvasWidth) =>
@@ -287,9 +402,37 @@ export const useGameStore = create<GameState>((set, get) => ({
     }),
 
   defeatBoss: () =>
-    set((state) => ({
-      boss: null,
-      bossesDefeated: state.bossesDefeated + 1,
-      score: state.score + 1000,
-    })),
+    set((state) => {
+      const newDefeated = state.bossesDefeated + 1;
+      const newScore = state.score + 1000;
+      
+      const unlocked = [...state.unlockedAchievements];
+      const recent = [...state.recentAchievements];
+      
+      const checkUnlock = (id: string, condition: boolean) => {
+        if (condition && !unlocked.includes(id)) {
+          const achievement = ACHIEVEMENTS.find((a) => a.id === id);
+          if (achievement) {
+            saveUnlockedAchievement(id);
+            unlocked.push(id);
+            recent.push(achievement);
+          }
+        }
+      };
+
+      checkUnlock('boss_slayer', newDefeated >= 1);
+      checkUnlock('boss_annihilator', newDefeated >= 5);
+      checkUnlock('close_call', state.lives === 1);
+      checkUnlock('intern_no_more', newScore >= 1000);
+      checkUnlock('gossip_columnist', newScore >= 5000);
+      checkUnlock('pulitzer_prize', newScore >= 10000);
+
+      return {
+        boss: null,
+        bossesDefeated: newDefeated,
+        score: newScore,
+        unlockedAchievements: unlocked,
+        recentAchievements: recent,
+      };
+    }),
 }));

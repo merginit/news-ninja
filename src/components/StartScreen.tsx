@@ -7,6 +7,7 @@ import IconLock from '~icons/mdi/lock';
 import IconRss from '~icons/mdi/rss';
 import IconCheck from '~icons/mdi/check';
 import IconRefresh from '~icons/mdi/refresh';
+import IconTrophy from '~icons/mdi/trophy';
 import {
   getHighScores,
   HighScore,
@@ -15,6 +16,7 @@ import {
   getUnlockedPens,
 } from '../utils/highScores';
 import { TutorialModal } from './TutorialModal';
+import { AchievementsModal } from './AchievementsModal';
 
 export const StartScreen: React.FC = () => {
   const {
@@ -30,6 +32,7 @@ export const StartScreen: React.FC = () => {
   const [highScores, setHighScores] = useState<HighScore[]>([]);
   const [totalScore, setTotalScore] = useState(0);
   const [showTutorial, setShowTutorial] = useState(false);
+  const [showAchievements, setShowAchievements] = useState(false);
   const [feedInput, setFeedInput] = useState(customFeedUrl || '');
 
   useEffect(() => {
@@ -251,7 +254,7 @@ export const StartScreen: React.FC = () => {
               <div className="text-xs font-bold uppercase tracking-widest text-black/60 [font-family:var(--nn-mono)] mb-4">
                 {isLoadingNews ? 'Fetching RSS feeds…' : 'Ready when you are.'}
               </div>
-              <div className="flex flex-col sm:flex-row gap-4 w-full max-w-sm">
+              <div className="flex flex-col sm:flex-row gap-4 w-full max-w-lg">
                 <button
                   onClick={startGame}
                   disabled={isLoadingNews}
@@ -259,6 +262,16 @@ export const StartScreen: React.FC = () => {
                 >
                   <span className="text-lg font-bold uppercase tracking-widest [font-family:var(--nn-mono)]">
                     {isLoadingNews ? 'Loading...' : 'Start'}
+                  </span>
+                </button>
+
+                <button
+                  onClick={() => setShowAchievements(true)}
+                  className="group flex-1 relative inline-flex items-center justify-center bg-[#ffb800] px-6 py-4 text-black border-4 border-black shadow-[6px_6px_0px_0px_var(--nn-ink)] hover:shadow-[2px_2px_0px_0px_var(--nn-ink)] hover:translate-x-1 hover:translate-y-1 transition-all"
+                >
+                  <IconTrophy className="w-6 h-6 mr-2" />
+                  <span className="text-lg font-bold uppercase tracking-widest [font-family:var(--nn-mono)]">
+                    Badges
                   </span>
                 </button>
 
@@ -277,6 +290,7 @@ export const StartScreen: React.FC = () => {
       </div>
 
       {showTutorial && <TutorialModal onClose={() => setShowTutorial(false)} />}
+      {showAchievements && <AchievementsModal onClose={() => setShowAchievements(false)} />}
     </>
   );
 };

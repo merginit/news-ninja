@@ -5,6 +5,7 @@ import { StartScreen } from './components/StartScreen';
 import { GameOverScreen } from './components/GameOverScreen';
 import { Ticker } from './components/Ticker';
 import { useGameStore } from './store/gameStore';
+import { AchievementToast } from './components/AchievementToast';
 
 function App() {
   const { status } = useGameStore();
@@ -18,6 +19,7 @@ function App() {
         {status === 'gameover' && <GameOverScreen />}
       </div>
       <Ticker />
+      <AchievementToast />
     </div>
   );
 }
