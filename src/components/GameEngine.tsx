@@ -41,6 +41,8 @@ interface ActiveNews {
     cy: number;
   };
   fromTopSecret?: boolean;
+  hasRetraction?: boolean;
+  retractionRect?: { left: number; right: number; top: number; bottom: number };
 }
 
 interface Particle {
@@ -151,7 +153,8 @@ export const GameEngine: React.FC = () => {
   const createCardCanvas = (
     data: NewsItemData,
     width: number,
-    height: number
+    height: number,
+    options: { hasRetraction?: boolean; retractionRect?: { left: number; right: number; top: number; bottom: number } } = {}
   ): HTMLCanvasElement => {
     const offCanvas = document.createElement('canvas');
     // High DPI scaling for sharp text
@@ -350,11 +353,13 @@ export const GameEngine: React.FC = () => {
       ctx.font = 'bold 12px "Playfair Display", serif';
     }
 
+    const lines: { text: string; y: number; width: number }[] = [];
+
     for (let i = 0; i < words.length; i++) {
       const testLine = line + words[i] + ' ';
       const metrics = ctx.measureText(testLine);
       if (metrics.width > maxWidth && i > 0) {
-        ctx.fillText(line, 12, y);
+        lines.push({ text: line, y, width: ctx.measureText(line).width });
         line = words[i] + ' ';
         y += lineHeight;
         if (y > height - 30) break; // limit lines
@@ -362,7 +367,39 @@ export const GameEngine: React.FC = () => {
         line = testLine;
       }
     }
-    ctx.fillText(line, 12, y);
+    lines.push({ text: line, y, width: ctx.measureText(line).width });
+
+    lines.forEach((l) => {
+      ctx.fillText(l.text, 12, l.y);
+    });
+
+    if (options.hasRetraction && lines.length > 0) {
+      // Pick a random line to redact, preferring middle/later lines
+      const targetLineIndex = Math.min(lines.length - 1, Math.floor(lines.length / 2) + Math.floor(Math.random() * 2));
+      const targetLine = lines[targetLineIndex];
+      
+      const rectX = 10;
+      const rectY = targetLine.y - 4; // slight padding above baseline
+      const rectWidth = Math.max(100, targetLine.width + 4);
+      const rectHeight = lineHeight + 2;
+
+      ctx.fillStyle = '#000000';
+      ctx.fillRect(rectX, rectY, rectWidth, rectHeight);
+      
+      ctx.fillStyle = '#ff2a00';
+      ctx.font = 'bold 16px "JetBrains Mono", monospace';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('REDACTED', rectX + rectWidth / 2, rectY + rectHeight / 2);
+
+      // Local coordinate system (center is 0,0)
+      options.retractionRect = {
+        left: rectX - width / 2,
+        right: (rectX + rectWidth) - width / 2,
+        top: rectY - height / 2,
+        bottom: (rectY + rectHeight) - height / 2,
+      };
+    }
 
     return offCanvas;
   };
@@ -382,6 +419,8 @@ export const GameEngine: React.FC = () => {
         const isBreaking = newsData.type === 'breaking';
         const cardWidth = isBreaking ? 240 : 300;
         const cardHeight = isBreaking ? 140 : 160;
+        const options: any = { hasRetraction: newsData.type === 'real' && Math.random() < 0.15 };
+        const canvasElement = createCardCanvas(newsData, cardWidth, cardHeight, options);
 
         const startX = Math.random() * (clientWidth - cardWidth) + cardWidth / 2;
         const vx = (clientWidth / 2 - startX) * 0.015 + (Math.random() - 0.5) * 4;
@@ -404,7 +443,9 @@ export const GameEngine: React.FC = () => {
           height: cardHeight,
           sliced: false,
           spawnTime: currentTime,
-          canvasElement: createCardCanvas(newsData, cardWidth, cardHeight),
+          hasRetraction: options.hasRetraction,
+          retractionRect: options.retractionRect,
+          canvasElement,
         });
       }
       lastSpawnTimeRef.current = currentTime;
@@ -1400,8 +1441,70 @@ export const GameEngine: React.FC = () => {
         }
       }
 
+      const hw = item.width / 2;
+      const hh = item.height / 2;
+
+      const tx1 = p1.x - item.x;
+      const ty1 = p1.y - item.y;
+      const tx2 = p2.x - item.x;
+      const ty2 = p2.y - item.y;
+
+      const rad = -(item.rotation * Math.PI) / 180;
+      const cos = Math.cos(rad);
+      const sin = Math.sin(rad);
+
+      const lx1 = tx1 * cos - ty1 * sin;
+      const ly1 = tx1 * sin + ty1 * cos;
+      const lx2 = tx2 * cos - ty2 * sin;
+      const ly2 = tx2 * sin + ty2 * cos;
+
+      if (item.hasRetraction && item.retractionRect) {
+        const hitPostIt = lineIntersectsRect(
+          { x: lx1, y: ly1, time: 0 },
+          { x: lx2, y: ly2, time: 0 },
+          item.retractionRect
+        );
+
+        if (hitPostIt) {
+          basePoints += 50;
+          floatingTextsRef.current.push({
+            id: Math.random().toString(36).substring(2, 9),
+            x: item.x,
+            y: item.y - 60,
+            text: 'RETRACTION CAUGHT! +50',
+            life: 1500,
+            maxLife: 1500,
+            color: '#ffeb3b',
+          });
+          for (let p = 0; p < 15; p++) {
+            particlesRef.current.push({
+              x: item.x + item.retractionRect.left + (item.retractionRect.right - item.retractionRect.left) / 2,
+              y: item.y + item.retractionRect.top + (item.retractionRect.bottom - item.retractionRect.top) / 2,
+              vx: (Math.random() - 0.5) * 10,
+              vy: (Math.random() - 0.5) * 10,
+              life: 500 + Math.random() * 500,
+              maxLife: 1000,
+              color: '#ff2a00',
+              size: Math.random() * 5 + 3,
+            });
+          }
+        } else {
+          basePoints -= 50;
+          audio.playBomb();
+          floatingTextsRef.current.push({
+            id: Math.random().toString(36).substring(2, 9),
+            x: item.x,
+            y: item.y - 60,
+            text: 'MISSED RETRACTION! -50',
+            life: 1500,
+            maxLife: 1500,
+            color: '#ff2a00',
+          });
+        }
+      }
+
       const points = basePoints * currentCombo;
-      if (points > 0) {
+      if (points !== 0) {
         addScore(points);
       }
 
@@ -1433,23 +1536,6 @@ export const GameEngine: React.FC = () => {
           color: currentCombo >= 4 ? '#ff2a00' : '#ffb800',
         });
       }
-
-      const hw = item.width / 2;
-      const hh = item.height / 2;
-
-      const tx1 = p1.x - item.x;
-      const ty1 = p1.y - item.y;
-      const tx2 = p2.x - item.x;
-      const ty2 = p2.y - item.y;
-
-      const rad = -(item.rotation * Math.PI) / 180;
-      const cos = Math.cos(rad);
-      const sin = Math.sin(rad);
-
-      const lx1 = tx1 * cos - ty1 * sin;
-      const ly1 = tx1 * sin + ty1 * cos;
-      const lx2 = tx2 * cos - ty2 * sin;
-      const ly2 = tx2 * sin + ty2 * cos;
 
       // Clickbait Swarm Logic
       if (item.data.type === 'clickbait') {
