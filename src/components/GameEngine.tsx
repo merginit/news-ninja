@@ -1035,69 +1035,44 @@ export const GameEngine: React.FC = () => {
       ctx.fillRect(0, 0, w, h);
     }
 
-    if (isDeepFake) {
-      ctx.save();
-      // Un-invert just the text so it's readable
-      ctx.translate(w, 0);
-      ctx.scale(-1, 1);
-
-      // Invert colors filter (fake CSS invert by drawing a difference rect)
-      ctx.globalCompositeOperation = 'difference';
-      ctx.fillStyle = 'white';
-      ctx.fillRect(0, 0, w, h);
-      ctx.globalCompositeOperation = 'source-over';
-
-      ctx.fillStyle = 'rgba(255, 42, 0, 0.8)';
-      ctx.font = '900 40px "Anton", sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText('DEEP FAKE DETECTED', w / 2, h / 2 - 20);
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
-      ctx.fillText('SENSORS INVERTED', w / 2, h / 2 + 30);
-      ctx.restore();
-    }
-
     // Draw Trending Zone
     const zone = state.trendingZone;
     if (zone && now < zone.activeUntil) {
       ctx.save();
 
-      // If Deep Fake is active, the context is already inverted!
-      // We need to un-invert for the text so it's readable, just like we did for the Deep Fake warning
-      if (isDeepFake) {
-        ctx.translate(w, 0);
-        ctx.scale(-1, 1);
-      }
-
       const timeRemaining = zone.activeUntil - now;
       const alpha = Math.min(1, timeRemaining / 1000); // Fade out at end
       ctx.globalAlpha = alpha;
 
-      // Calculate the "real" coordinates based on whether we are inverted or not
-      const drawX = isDeepFake ? w - zone.x - zone.width : zone.x;
-      const drawY = zone.y;
+      ctx.translate(zone.x, zone.y);
+      if (isDeepFake) {
+        // Offset to flip around the right edge of the zone so it stays in the same world-space rect
+        ctx.translate(zone.width, 0);
+        ctx.scale(-1, 1);
+      }
 
       // Pulse background
       const pulse = Math.abs(Math.sin(now / 150));
       ctx.fillStyle = `rgba(0, 255, 255, ${0.1 + pulse * 0.1})`;
-      ctx.fillRect(drawX, drawY, zone.width, zone.height);
+      ctx.fillRect(0, 0, zone.width, zone.height);
 
       // Dashed border
       ctx.strokeStyle = '#00ffff';
       ctx.lineWidth = 4;
       ctx.setLineDash([15, 10]);
       ctx.lineDashOffset = -now / 20; // Marching ants
-      ctx.strokeRect(drawX, drawY, zone.width, zone.height);
+      ctx.strokeRect(0, 0, zone.width, zone.height);
 
       // Text
       ctx.setLineDash([]);
       ctx.fillStyle = '#000000';
-      ctx.fillRect(drawX - 4, drawY - 30, 200, 34);
+      ctx.fillRect(-4, -30, 200, 34);
 
       ctx.fillStyle = '#00ffff';
       ctx.font = '900 24px "Anton", sans-serif';
       ctx.textAlign = 'left';
       ctx.textBaseline = 'top';
-      ctx.fillText('TRENDING TOPIC', drawX + 8, drawY - 26);
+      ctx.fillText('TRENDING TOPIC', 8, -26);
 
       ctx.restore();
     }
@@ -1170,16 +1145,12 @@ export const GameEngine: React.FC = () => {
       const b = state.boss;
       ctx.save();
 
-      // Calculate the visual X. If Deep Fake is active, the entire canvas is inverted.
+      ctx.translate(b.x, b.y);
+
+      // Keep text and card orientation readable during Deep Fake
       if (isDeepFake) {
-        ctx.translate(w, 0);
         ctx.scale(-1, 1);
       }
-
-      const drawX = isDeepFake ? w - b.x : b.x;
-      const drawY = b.y;
-
-      ctx.translate(drawX, drawY);
 
       // Jitter if hit recently (projectiles flying)
       const isHit = projectilesRef.current.some((p) => p.progress > 0.8);
@@ -1275,6 +1246,28 @@ export const GameEngine: React.FC = () => {
       ctx.fillRect(-s / 2, -s / 2, s, s);
       ctx.restore();
     });
+
+    if (isDeepFake) {
+      ctx.save();
+      // Un-invert for the full-screen effect and text so it stays centered and readable
+      ctx.translate(w, 0);
+      ctx.scale(-1, 1);
+
+      // Invert colors filter (fake CSS invert by drawing a difference rect)
+      ctx.globalCompositeOperation = 'difference';
+      ctx.fillStyle = 'white';
+      ctx.fillRect(0, 0, w, h);
+      ctx.globalCompositeOperation = 'source-over';
+
+      ctx.fillStyle = 'rgba(255, 42, 0, 0.8)';
+      ctx.font = '900 40px "Anton", sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('DEEP FAKE DETECTED', w / 2, h / 2 - 20);
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+      ctx.fillText('SENSORS INVERTED', w / 2, h / 2 + 30);
+      ctx.restore();
+    }
 
     // Draw floating combo texts
     floatingTextsRef.current.forEach((t) => {
