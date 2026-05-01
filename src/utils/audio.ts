@@ -1,291 +1,304 @@
-const BPM = 130;
-const STEP_DURATION = 60 / BPM / 4; // 16th note duration
-const STEPS_PER_LOOP = 32; // 2 bars of 16 16th-notes
-const SCHEDULE_AHEAD = 0.1; // seconds to look ahead
-const SCHEDULE_INTERVAL = 25; // ms between scheduler ticks
+const BPM = 138;
+const STEP_DURATION = 60 / BPM / 4;
+const STEPS_PER_LOOP = 64; // 4 bars
+const SCHEDULE_AHEAD = 0.1;
+const SCHEDULE_INTERVAL = 25;
 
-// A minor pentatonic scale frequencies
-const NOTE_FREQS: Record<string, number> = {
-  A2: 110.00, B2: 123.47, C3: 130.81, D3: 146.83, E3: 164.81,
-  F3: 174.61, G3: 196.00, A3: 220.00, B3: 246.94, C4: 261.63,
-  D4: 293.66, E4: 329.63, F4: 349.23, G4: 392.00, A4: 440.00,
-  C5: 523.25, E5: 659.26,
+const F: Record<string, number> = {
+  D2: 73.42, F2: 87.31, G2: 98.00, A2: 110.00, Bb2: 116.54, C3: 130.81, D3: 146.83,
+  F3: 174.61, G3: 196.00, A3: 220.00, Bb3: 233.08, C4: 261.63, D4: 293.66,
+  F4: 349.23, G4: 392.00, A4: 440.00, Bb4: 466.16, C5: 523.25, D5: 587.33,
 };
 
-// Step patterns (1 = trigger, 0 = silent) — 32 steps = 2 bars
-const KICK_PATTERN =    [1,0,0,0, 1,0,0,0, 1,0,0,0, 1,0,0,0, 1,0,0,0, 1,0,0,1, 1,0,0,0, 1,0,1,0];
-const HIHAT_PATTERN =   [0,0,1,0, 0,0,1,0, 0,0,1,0, 0,0,1,0, 0,0,1,0, 0,0,1,0, 0,0,1,0, 0,0,1,1];
-const BASS_NOTES =      ['A2','','','A2', '','','C3','', 'D3','','','D3', '','','E3','',
-                         'A2','','','A2', '','','G3','', 'E3','','','E3', '','','C3',''];
-const PAD_CHANGES: Record<number, string[]> = {
-  0:  ['A3', 'C4', 'E4'],    // Am
-  16: ['F3', 'A3', 'C4'],    // F
+// 64-step patterns — 4 bars, breakbeat-influenced
+//                    |--- bar 1 ---|--- bar 2 ---|--- bar 3 ---|--- bar 4 (fill) ---|
+const KICK_PATTERN = [1,0,0,0, 0,0,0,0, 1,0,1,0, 0,0,0,0,  1,0,0,0, 0,0,0,0, 1,0,0,1, 0,0,0,0,
+                      1,0,0,0, 0,0,0,0, 1,0,1,0, 0,0,0,0,  1,0,0,1, 0,1,0,0, 1,0,0,0, 0,0,1,0];
+// snare = 2, clack = 1
+const PERC_PATTERN = [0,0,0,0, 2,0,0,1, 0,0,0,0, 2,0,1,0,  0,0,0,1, 2,0,0,0, 0,1,0,0, 2,0,0,1,
+                      0,0,0,0, 2,0,0,1, 0,0,0,0, 2,0,1,0,  0,1,0,0, 2,0,1,0, 2,0,1,0, 2,0,2,1];
+const BASS_STEPS: (string | '')[] =
+                     ['D2','','','',  '','','D2','',  '','','F2','',  '','G2','','',
+                      'A2','','','',  '','','A2','',  '','','G2','',  '','F2','','',
+                      'D2','','','',  '','','D2','',  '','','Bb2','', '','A2','','',
+                      'C3','','','',  '','','C3','',  '','','A2','',  '','','D2',''];
+// Chord stabs: Dm, Bb, C, Dm
+const STAB_STEPS: Record<number, string[]> = {
+  0: ['D4','F4','A4'],  2: ['D4','F4','A4'],
+  16: ['Bb3','D4','F4'], 20: ['Bb3','D4','F4'],
+  32: ['C4','G4','C5'],  36: ['C4','G4','C5'],
+  48: ['D4','F4','A4'],  52: ['D4','A4','D5'],
 };
-const ARP_NOTES =       ['A4','C5','E5','C5', 'A4','E4','A4','C5', 'E5','C5','A4','E4', 'G4','A4','C5','E5',
-                         'E5','C5','A4','G4', 'A4','C5','E5','A4', 'C5','E5','A4','G4', 'E4','G4','A4','C5'];
+const LEAD_NOTES: (string | '')[] =
+                     ['D5','','A4','',  'F4','','G4','',  'A4','','','Bb4', '','A4','','',
+                      'G4','','F4','',  'D4','','','F4',  'G4','','A4','',  '','','','',
+                      'D5','','C5','',  'Bb4','','A4','', 'G4','','','A4',  'Bb4','','A4','G4',
+                      'F4','','G4','',  'A4','','D5','',  '','C5','','A4',  '','','',''];
 
-interface LayerGains {
-  kick: GainNode;
-  hihat: GainNode;
-  bass: GainNode;
-  pad: GainNode;
-  arp: GainNode;
-}
-
-const LAYER_THRESHOLDS = { kick: 0, hihat: 2, bass: 4, pad: 8, arp: 15 };
-const FADE_IN_TIME = 0.5;
-const FADE_OUT_TIME = 1.0;
+interface LayerGains { kick: GainNode; perc: GainNode; bass: GainNode; stab: GainNode; lead: GainNode }
+const LAYER_THRESHOLDS = { kick: 1, perc: 2, bass: 4, stab: 8, lead: 15 };
+const FADE_IN = 0.5;
+const FADE_OUT = 1.0;
 
 class MusicEngine {
   private ctx: AudioContext;
-  private masterGain: GainNode;
-  private layerGains: LayerGains;
-  private schedulerId: ReturnType<typeof setInterval> | null = null;
-  private currentStep = 0;
-  private nextStepTime = 0;
-  private isPlaying = false;
+  private master: GainNode;
+  private layers: LayerGains;
+  private timerId: ReturnType<typeof setInterval> | null = null;
+  private step = 0;
+  private nextTime = 0;
+  private playing = false;
   private combo = 0;
-  private activePadOscs: OscillatorNode[] = [];
-  private activePadGain: GainNode | null = null;
-  private noiseBuffer: AudioBuffer;
+  private noiseShort: AudioBuffer;
+  private noiseLong: AudioBuffer;
 
   constructor(ctx: AudioContext) {
     this.ctx = ctx;
-
-    this.masterGain = ctx.createGain();
-    this.masterGain.gain.value = 0.35;
-    this.masterGain.connect(ctx.destination);
-
-    this.layerGains = {
-      kick: this.createLayerGain(0),
-      hihat: this.createLayerGain(0),
-      bass: this.createLayerGain(0),
-      pad: this.createLayerGain(0),
-      arp: this.createLayerGain(0),
+    this.master = ctx.createGain();
+    this.master.gain.value = 0.30;
+    this.master.connect(ctx.destination);
+    this.layers = {
+      kick: this.makeGain(), perc: this.makeGain(),
+      bass: this.makeGain(), stab: this.makeGain(), lead: this.makeGain(),
     };
-
-    this.noiseBuffer = this.createNoiseBuffer();
+    this.noiseShort = this.makeNoise(0.03);
+    this.noiseLong = this.makeNoise(0.12);
   }
 
-  private createLayerGain(initialVolume: number): GainNode {
+  private makeGain(): GainNode {
     const g = this.ctx.createGain();
-    g.gain.value = initialVolume;
-    g.connect(this.masterGain);
+    g.gain.value = 0;
+    g.connect(this.master);
     return g;
   }
 
-  private createNoiseBuffer(): AudioBuffer {
-    const sampleRate = this.ctx.sampleRate;
-    const length = sampleRate * 0.05; // 50ms of noise
-    const buffer = this.ctx.createBuffer(1, length, sampleRate);
-    const data = buffer.getChannelData(0);
-    for (let i = 0; i < length; i++) {
-      data[i] = Math.random() * 2 - 1;
-    }
-    return buffer;
+  private makeNoise(seconds: number): AudioBuffer {
+    const len = this.ctx.sampleRate * seconds;
+    const buf = this.ctx.createBuffer(1, len, this.ctx.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+    return buf;
   }
 
   start() {
-    if (this.isPlaying) return;
-    this.isPlaying = true;
-    this.currentStep = 0;
+    if (this.playing) return;
+    this.playing = true;
+    this.step = 0;
     this.combo = 0;
-    this.nextStepTime = this.ctx.currentTime + 0.05;
-    this.updateLayerVolumes();
-    this.schedulerId = setInterval(() => this.schedule(), SCHEDULE_INTERVAL);
+    this.nextTime = this.ctx.currentTime + 0.05;
+    this.syncLayers();
+    this.timerId = setInterval(() => this.tick(), SCHEDULE_INTERVAL);
   }
 
   stop() {
-    if (!this.isPlaying) return;
-    this.isPlaying = false;
-    if (this.schedulerId !== null) {
-      clearInterval(this.schedulerId);
-      this.schedulerId = null;
-    }
-    this.stopPad();
-    // Quick fade out master
-    const now = this.ctx.currentTime;
-    this.masterGain.gain.cancelScheduledValues(now);
-    this.masterGain.gain.setValueAtTime(this.masterGain.gain.value, now);
-    this.masterGain.gain.linearRampToValueAtTime(0, now + 0.3);
+    if (!this.playing) return;
+    this.playing = false;
+    if (this.timerId !== null) { clearInterval(this.timerId); this.timerId = null; }
+    const t = this.ctx.currentTime;
+    this.master.gain.cancelScheduledValues(t);
+    this.master.gain.setValueAtTime(this.master.gain.value, t);
+    this.master.gain.linearRampToValueAtTime(0, t + 0.3);
     setTimeout(() => {
-      this.masterGain.gain.value = 0.35;
-      for (const key of Object.keys(this.layerGains) as (keyof LayerGains)[]) {
-        this.layerGains[key].gain.value = 0;
-      }
+      this.master.gain.value = 0.30;
+      for (const k of Object.keys(this.layers) as (keyof LayerGains)[]) this.layers[k].gain.value = 0;
     }, 350);
   }
 
   pause() {
-    if (this.schedulerId !== null) {
-      clearInterval(this.schedulerId);
-      this.schedulerId = null;
-    }
-    this.stopPad();
+    if (this.timerId !== null) { clearInterval(this.timerId); this.timerId = null; }
   }
 
   resume() {
-    if (!this.isPlaying) return;
-    this.nextStepTime = this.ctx.currentTime + 0.05;
-    this.updateLayerVolumes();
-    this.restartPad();
-    this.schedulerId = setInterval(() => this.schedule(), SCHEDULE_INTERVAL);
+    if (!this.playing) return;
+    this.nextTime = this.ctx.currentTime + 0.05;
+    this.syncLayers();
+    this.timerId = setInterval(() => this.tick(), SCHEDULE_INTERVAL);
   }
 
-  updateCombo(combo: number) {
-    this.combo = combo;
-    this.updateLayerVolumes();
-  }
+  updateCombo(c: number) { this.combo = c; this.syncLayers(); }
 
-  private updateLayerVolumes() {
-    const now = this.ctx.currentTime;
-    for (const key of Object.keys(LAYER_THRESHOLDS) as (keyof typeof LAYER_THRESHOLDS)[]) {
-      const gain = this.layerGains[key];
-      const shouldBeActive = this.combo >= LAYER_THRESHOLDS[key];
-      const target = shouldBeActive ? 1.0 : 0.0;
-      const fadeTime = shouldBeActive ? FADE_IN_TIME : FADE_OUT_TIME;
-
-      gain.gain.cancelScheduledValues(now);
-      gain.gain.setValueAtTime(gain.gain.value, now);
-      gain.gain.linearRampToValueAtTime(target, now + fadeTime);
-    }
-
-    // Restart pad oscillators if pad layer just became active
-    if (this.combo >= LAYER_THRESHOLDS.pad && !this.activePadGain) {
-      this.restartPad();
-    } else if (this.combo < LAYER_THRESHOLDS.pad && this.activePadGain) {
-      // Let the gain fade handle it; pad will be stopped on next stop/pause or volume reaches 0
+  private syncLayers() {
+    const t = this.ctx.currentTime;
+    for (const k of Object.keys(LAYER_THRESHOLDS) as (keyof typeof LAYER_THRESHOLDS)[]) {
+      const g = this.layers[k];
+      const on = this.combo >= LAYER_THRESHOLDS[k];
+      g.gain.cancelScheduledValues(t);
+      g.gain.setValueAtTime(g.gain.value, t);
+      g.gain.linearRampToValueAtTime(on ? 1 : 0, t + (on ? FADE_IN : FADE_OUT));
     }
   }
 
-  private schedule() {
-    while (this.nextStepTime < this.ctx.currentTime + SCHEDULE_AHEAD) {
-      this.scheduleStep(this.currentStep, this.nextStepTime);
-      this.currentStep = (this.currentStep + 1) % STEPS_PER_LOOP;
-      this.nextStepTime += STEP_DURATION;
+  private tick() {
+    while (this.nextTime < this.ctx.currentTime + SCHEDULE_AHEAD) {
+      this.emit(this.step, this.nextTime);
+      this.step = (this.step + 1) % STEPS_PER_LOOP;
+      this.nextTime += STEP_DURATION;
     }
   }
 
-  private scheduleStep(step: number, time: number) {
-    if (KICK_PATTERN[step]) this.scheduleKick(time);
-    if (HIHAT_PATTERN[step]) this.scheduleHihat(time);
-    if (BASS_NOTES[step]) this.scheduleBass(time, BASS_NOTES[step]);
-    if (PAD_CHANGES[step] && this.activePadGain) this.schedulePadChange(time, PAD_CHANGES[step]);
-    if (ARP_NOTES[step]) this.scheduleArp(time, ARP_NOTES[step]);
+  private emit(s: number, t: number) {
+    if (KICK_PATTERN[s]) this.kick(t);
+    if (PERC_PATTERN[s]) this.perc(t, PERC_PATTERN[s]);
+    if (BASS_STEPS[s]) this.bass(t, BASS_STEPS[s]);
+    if (STAB_STEPS[s]) this.stab(t, STAB_STEPS[s]);
+    if (LEAD_NOTES[s]) this.lead(t, LEAD_NOTES[s]);
   }
 
-  private scheduleKick(time: number) {
-    const osc = this.ctx.createOscillator();
-    const gain = this.ctx.createGain();
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(150, time);
-    osc.frequency.exponentialRampToValueAtTime(40, time + 0.08);
-    gain.gain.setValueAtTime(0.8, time);
-    gain.gain.exponentialRampToValueAtTime(0.01, time + 0.15);
-    osc.connect(gain);
-    gain.connect(this.layerGains.kick);
-    osc.start(time);
-    osc.stop(time + 0.15);
+  // --- Kick: sine body + triangle click transient ---
+  private kick(t: number) {
+    const body = this.ctx.createOscillator();
+    const click = this.ctx.createOscillator();
+    const gBody = this.ctx.createGain();
+    const gClick = this.ctx.createGain();
+
+    body.type = 'sine';
+    body.frequency.setValueAtTime(160, t);
+    body.frequency.exponentialRampToValueAtTime(35, t + 0.07);
+    gBody.gain.setValueAtTime(0.9, t);
+    gBody.gain.exponentialRampToValueAtTime(0.01, t + 0.18);
+
+    click.type = 'triangle';
+    click.frequency.setValueAtTime(1200, t);
+    click.frequency.exponentialRampToValueAtTime(200, t + 0.02);
+    gClick.gain.setValueAtTime(0.4, t);
+    gClick.gain.exponentialRampToValueAtTime(0.01, t + 0.025);
+
+    body.connect(gBody); gBody.connect(this.layers.kick);
+    click.connect(gClick); gClick.connect(this.layers.kick);
+    body.start(t); body.stop(t + 0.2);
+    click.start(t); click.stop(t + 0.03);
   }
 
-  private scheduleHihat(time: number) {
-    const source = this.ctx.createBufferSource();
-    source.buffer = this.noiseBuffer;
-    const filter = this.ctx.createBiquadFilter();
-    filter.type = 'highpass';
-    filter.frequency.value = 8000;
-    const gain = this.ctx.createGain();
-    gain.gain.setValueAtTime(0.3, time);
-    gain.gain.exponentialRampToValueAtTime(0.01, time + 0.04);
-    source.connect(filter);
-    filter.connect(gain);
-    gain.connect(this.layerGains.hihat);
-    source.start(time);
-    source.stop(time + 0.05);
+  // --- Percussion: snare (noise burst + body) or clack (metallic click) ---
+  private perc(t: number, type: number) {
+    if (type === 2) {
+      // Snare: noise burst through bandpass + sine body
+      const noise = this.ctx.createBufferSource();
+      noise.buffer = this.noiseLong;
+      const bp = this.ctx.createBiquadFilter();
+      bp.type = 'bandpass'; bp.frequency.value = 3500; bp.Q.value = 1.2;
+      const gNoise = this.ctx.createGain();
+      gNoise.gain.setValueAtTime(0.5, t);
+      gNoise.gain.exponentialRampToValueAtTime(0.01, t + 0.1);
+      noise.connect(bp); bp.connect(gNoise); gNoise.connect(this.layers.perc);
+      noise.start(t); noise.stop(t + 0.12);
+
+      const body = this.ctx.createOscillator();
+      body.type = 'triangle';
+      body.frequency.setValueAtTime(200, t);
+      body.frequency.exponentialRampToValueAtTime(120, t + 0.04);
+      const gB = this.ctx.createGain();
+      gB.gain.setValueAtTime(0.35, t);
+      gB.gain.exponentialRampToValueAtTime(0.01, t + 0.06);
+      body.connect(gB); gB.connect(this.layers.perc);
+      body.start(t); body.stop(t + 0.07);
+    } else {
+      // Clack: very short high-freq metallic click (newsroom typewriter feel)
+      const noise = this.ctx.createBufferSource();
+      noise.buffer = this.noiseShort;
+      const hp = this.ctx.createBiquadFilter();
+      hp.type = 'highpass'; hp.frequency.value = 6000;
+      const gN = this.ctx.createGain();
+      gN.gain.setValueAtTime(0.25, t);
+      gN.gain.exponentialRampToValueAtTime(0.01, t + 0.015);
+      noise.connect(hp); hp.connect(gN); gN.connect(this.layers.perc);
+      noise.start(t); noise.stop(t + 0.03);
+
+      const ping = this.ctx.createOscillator();
+      ping.type = 'square';
+      ping.frequency.setValueAtTime(2800, t);
+      ping.frequency.exponentialRampToValueAtTime(1400, t + 0.01);
+      const gP = this.ctx.createGain();
+      gP.gain.setValueAtTime(0.08, t);
+      gP.gain.exponentialRampToValueAtTime(0.01, t + 0.015);
+      ping.connect(gP); gP.connect(this.layers.perc);
+      ping.start(t); ping.stop(t + 0.02);
+    }
   }
 
-  private scheduleBass(time: number, note: string) {
-    const freq = NOTE_FREQS[note];
+  // --- Bass: detuned dual-saw "reese" through aggressive LP filter ---
+  private bass(t: number, note: string) {
+    const freq = F[note];
     if (!freq) return;
-    const osc = this.ctx.createOscillator();
-    const filter = this.ctx.createBiquadFilter();
-    const gain = this.ctx.createGain();
-    osc.type = 'sawtooth';
-    osc.frequency.setValueAtTime(freq, time);
-    filter.type = 'lowpass';
-    filter.frequency.setValueAtTime(400, time);
-    filter.frequency.linearRampToValueAtTime(200, time + STEP_DURATION * 0.9);
-    gain.gain.setValueAtTime(0.4, time);
-    gain.gain.linearRampToValueAtTime(0.01, time + STEP_DURATION * 0.9);
-    osc.connect(filter);
-    filter.connect(gain);
-    gain.connect(this.layerGains.bass);
-    osc.start(time);
-    osc.stop(time + STEP_DURATION);
+    const dur = STEP_DURATION * 1.8;
+    const o1 = this.ctx.createOscillator();
+    const o2 = this.ctx.createOscillator();
+    o1.type = 'sawtooth'; o2.type = 'sawtooth';
+    o1.frequency.setValueAtTime(freq, t);
+    o2.frequency.setValueAtTime(freq, t);
+    o2.detune.setValueAtTime(12, t); // slight detune for thickness
+    const lp = this.ctx.createBiquadFilter();
+    lp.type = 'lowpass'; lp.Q.value = 4;
+    lp.frequency.setValueAtTime(600, t);
+    lp.frequency.exponentialRampToValueAtTime(150, t + dur * 0.8);
+    const g = this.ctx.createGain();
+    g.gain.setValueAtTime(0.35, t);
+    g.gain.setValueAtTime(0.35, t + dur * 0.5);
+    g.gain.linearRampToValueAtTime(0.01, t + dur);
+    o1.connect(lp); o2.connect(lp); lp.connect(g); g.connect(this.layers.bass);
+    o1.start(t); o1.stop(t + dur);
+    o2.start(t); o2.stop(t + dur);
   }
 
-  private restartPad() {
-    this.stopPad();
-    if (this.combo < LAYER_THRESHOLDS.pad) return;
+  // --- Stab: punchy filtered chord hit with fast filter sweep ---
+  private stab(t: number, notes: string[]) {
+    const dur = STEP_DURATION * 2;
+    const mix = this.ctx.createGain();
+    const lp = this.ctx.createBiquadFilter();
+    lp.type = 'lowpass'; lp.Q.value = 3;
+    lp.frequency.setValueAtTime(4000, t);
+    lp.frequency.exponentialRampToValueAtTime(400, t + dur * 0.6);
+    const g = this.ctx.createGain();
+    g.gain.setValueAtTime(0.18, t);
+    g.gain.linearRampToValueAtTime(0.01, t + dur);
+    mix.connect(lp); lp.connect(g); g.connect(this.layers.stab);
 
-    const padGain = this.ctx.createGain();
-    padGain.gain.value = 0.15;
-    padGain.connect(this.layerGains.pad);
-    this.activePadGain = padGain;
-
-    // Determine which chord based on current step
-    const chordNotes = this.currentStep < 16
-      ? PAD_CHANGES[0]
-      : (PAD_CHANGES[16] || PAD_CHANGES[0]);
-
-    this.activePadOscs = chordNotes.map((note, i) => {
-      const freq = NOTE_FREQS[note];
-      const osc = this.ctx.createOscillator();
-      osc.type = 'sawtooth';
-      osc.frequency.value = freq;
-      osc.detune.value = (i - 1) * 8; // slight detune for width
-      osc.connect(padGain);
-      osc.start();
-      return osc;
-    });
-  }
-
-  private stopPad() {
-    for (const osc of this.activePadOscs) {
-      try { osc.stop(); } catch { /* already stopped */ }
-    }
-    this.activePadOscs = [];
-    if (this.activePadGain) {
-      try { this.activePadGain.disconnect(); } catch { /* ok */ }
-      this.activePadGain = null;
+    for (let i = 0; i < notes.length; i++) {
+      const freq = F[notes[i]];
+      if (!freq) continue;
+      const o = this.ctx.createOscillator();
+      o.type = 'sawtooth';
+      o.frequency.setValueAtTime(freq, t);
+      o.detune.setValueAtTime((i - 1) * 6, t);
+      o.connect(mix);
+      o.start(t); o.stop(t + dur);
     }
   }
 
-  private schedulePadChange(time: number, notes: string[]) {
-    // Smoothly retune existing pad oscillators
-    if (this.activePadOscs.length === notes.length) {
-      notes.forEach((note, i) => {
-        const freq = NOTE_FREQS[note];
-        this.activePadOscs[i].frequency.setValueAtTime(this.activePadOscs[i].frequency.value, time);
-        this.activePadOscs[i].frequency.linearRampToValueAtTime(freq, time + 0.1);
-      });
-    }
-  }
-
-  private scheduleArp(time: number, note: string) {
-    const freq = NOTE_FREQS[note];
+  // --- Lead: saw+square unison with vibrato ---
+  private lead(t: number, note: string) {
+    const freq = F[note];
     if (!freq) return;
-    const osc = this.ctx.createOscillator();
-    const gain = this.ctx.createGain();
-    osc.type = 'square';
-    osc.frequency.setValueAtTime(freq, time);
-    gain.gain.setValueAtTime(0.08, time);
-    gain.gain.setValueAtTime(0.08, time + STEP_DURATION * 0.5);
-    gain.gain.linearRampToValueAtTime(0.01, time + STEP_DURATION * 0.9);
-    osc.connect(gain);
-    gain.connect(this.layerGains.arp);
-    osc.start(time);
-    osc.stop(time + STEP_DURATION);
+    const dur = STEP_DURATION * 0.85;
+    const o1 = this.ctx.createOscillator();
+    const o2 = this.ctx.createOscillator();
+    o1.type = 'sawtooth'; o2.type = 'square';
+    o1.frequency.setValueAtTime(freq, t);
+    o2.frequency.setValueAtTime(freq * 1.002, t); // slight detune
+
+    // Vibrato via LFO
+    const lfo = this.ctx.createOscillator();
+    const lfoGain = this.ctx.createGain();
+    lfo.frequency.value = 6;
+    lfoGain.gain.setValueAtTime(0, t);
+    lfoGain.gain.linearRampToValueAtTime(4, t + dur * 0.5);
+    lfo.connect(lfoGain);
+    lfoGain.connect(o1.frequency);
+    lfoGain.connect(o2.frequency);
+
+    const lp = this.ctx.createBiquadFilter();
+    lp.type = 'lowpass'; lp.Q.value = 2;
+    lp.frequency.setValueAtTime(3000, t);
+    lp.frequency.linearRampToValueAtTime(1200, t + dur);
+
+    const g = this.ctx.createGain();
+    g.gain.setValueAtTime(0.1, t);
+    g.gain.setValueAtTime(0.1, t + dur * 0.6);
+    g.gain.linearRampToValueAtTime(0.01, t + dur);
+
+    o1.connect(lp); o2.connect(lp); lp.connect(g); g.connect(this.layers.lead);
+    lfo.start(t); o1.start(t); o2.start(t);
+    lfo.stop(t + dur); o1.stop(t + dur); o2.stop(t + dur);
   }
 }
 
