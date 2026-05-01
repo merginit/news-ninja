@@ -571,10 +571,11 @@ export const GameEngine: React.FC = () => {
             source: 'THE ONION',
           };
 
-          const cardWidth = 200;
-          const cardHeight = 100;
-          const bombWidth = 120;
-          const bombHeight = 120;
+          const cardWidth = 150;
+          const cardHeight = 80;
+          const bombWidth = 150;
+          const bombHeight = 80;
+          const canvasSize = { w: 300, h: 160 };
 
           // Spawn AD
           activeNewsRef.current.push({
@@ -590,7 +591,7 @@ export const GameEngine: React.FC = () => {
             height: cardHeight,
             sliced: false,
             spawnTime: now,
-            canvasElement: createCardCanvas(adData as any, cardWidth, cardHeight),
+            canvasElement: createCardCanvas(adData as any, canvasSize.w, canvasSize.h),
           });
 
           // Spawn BOMB extremely close
@@ -607,7 +608,7 @@ export const GameEngine: React.FC = () => {
             height: bombHeight,
             sliced: false,
             spawnTime: now,
-            canvasElement: createCardCanvas(bombData as any, bombWidth, bombHeight),
+            canvasElement: createCardCanvas(bombData as any, canvasSize.w, canvasSize.h),
           });
         }
       }
@@ -645,8 +646,9 @@ export const GameEngine: React.FC = () => {
             title: type === 'bomb' ? 'HOSTILE TAKEOVER BID' : 'COMPANY MEMO',
             source: 'BOARD OF DIRECTORS',
           };
-          const cardWidth = type === 'bomb' ? 120 : 200;
-          const cardHeight = type === 'bomb' ? 120 : 100;
+          const cardWidth = 150;
+          const cardHeight = 80;
+          const canvasSize = { w: 300, h: 160 };
 
           activeNewsRef.current.push({
             id: Math.random().toString(36).substring(2, 9),
@@ -661,7 +663,7 @@ export const GameEngine: React.FC = () => {
             height: cardHeight,
             sliced: false,
             spawnTime: now,
-            canvasElement: createCardCanvas(newsData as any, cardWidth, cardHeight),
+            canvasElement: createCardCanvas(newsData as any, canvasSize.w, canvasSize.h),
           });
         }
       }
