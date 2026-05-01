@@ -1446,6 +1446,7 @@ export const GameEngine: React.FC = () => {
       }
 
       comboCountRef.current = 0;
+      audio.updateMusicCombo(0);
       audio.playBomb();
 
       if (consumePaywall()) {
@@ -1516,6 +1517,7 @@ export const GameEngine: React.FC = () => {
       comboCountRef.current += 1;
       const currentCombo = comboCountRef.current;
       updateHighestCombo(currentCombo);
+      audio.updateMusicCombo(currentCombo);
 
       let basePoints = 10;
       let isPowerup = false;
@@ -1964,6 +1966,9 @@ export const GameEngine: React.FC = () => {
       comboCountRef.current = 0;
       lastSpawnTimeRef.current = performance.now();
       pauseStartTimeRef.current = 0;
+      audio.startMusic();
+    } else {
+      audio.stopMusic();
     }
   }, [status, gameId]);
 
@@ -1971,12 +1976,14 @@ export const GameEngine: React.FC = () => {
     const unsub = useGameStore.subscribe((state, prevState) => {
       if (state.isPaused && !prevState.isPaused) {
         pauseStartTimeRef.current = performance.now();
+        audio.pauseMusic();
       } else if (!state.isPaused && prevState.isPaused && pauseStartTimeRef.current > 0) {
         const pauseDuration = performance.now() - pauseStartTimeRef.current;
         lastSpawnTimeRef.current += pauseDuration;
         trailRef.current.forEach(p => p.time += pauseDuration);
         activeNewsRef.current.forEach(n => n.spawnTime += pauseDuration);
         pauseStartTimeRef.current = 0;
+        audio.resumeMusic();
       }
     });
     return unsub;
@@ -2051,6 +2058,7 @@ export const GameEngine: React.FC = () => {
   const handlePointerUp = () => {
     isPointerDownRef.current = false;
     comboCountRef.current = 0;
+    audio.updateMusicCombo(0);
   };
 
   const isFrozen = useGameStore((state) => Date.now() < state.freezeActiveUntil);
