@@ -6,6 +6,7 @@ import IconLightning from '~icons/mdi/lightning-bolt';
 import IconFire from '~icons/mdi/fire';
 import IconLock from '~icons/mdi/shield-lock';
 import IconBomb from '~icons/mdi/bomb';
+import IconShieldStar from '~icons/mdi/shield-star';
 
 interface TutorialModalProps {
   onClose: () => void;
@@ -95,6 +96,24 @@ const slides = [
         </div>
         <div className="font-bold text-lg font-serif leading-tight">
           Exclusive Investigative Report Revealed
+        </div>
+      </div>
+    ),
+  },
+  {
+    title: 'Ad-Blocker Shield',
+    description:
+      'A rare power-up that makes your blade temporarily phase through Satire Bombs without detonating them, allowing you to slice aggressively without fear.',
+    card: (
+      <div className="w-64 h-32 bg-[#39FF14] border-4 border-[#1B5E20] relative p-3 flex flex-col justify-between shadow-[8px_8px_0px_0px_rgba(0,0,0,0.2)]">
+        <div className="border-b-2 border-black pb-1 mb-2 flex justify-between items-center">
+          <span className="text-black font-bold text-xs font-mono uppercase">Sponsored</span>
+          <div className="bg-[#1B5E20] text-white px-2 py-0.5 flex items-center gap-1 text-xs font-bold">
+            <IconShieldStar /> AD-BLOCKER
+          </div>
+        </div>
+        <div className="font-bold text-lg font-serif leading-tight text-black">
+          Remove All Annoying Popups Now!
         </div>
       </div>
     ),

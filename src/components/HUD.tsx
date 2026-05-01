@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useGameStore } from '../store/gameStore';
 import LightningBolt from '~icons/mdi/lightning-bolt';
 import ShieldLock from '~icons/mdi/shield-lock';
+import ShieldStar from '~icons/mdi/shield-star';
 import CardsHeart from '~icons/mdi/cards-heart';
 import HeartOutline from '~icons/mdi/heart-outline';
 import VolumeHigh from '~icons/mdi/volume-high';
@@ -20,6 +21,7 @@ export const HUD: React.FC = () => {
     activateFactCheck,
     status,
     paywallShields,
+    adBlockerActiveUntil,
     isPaused,
     togglePause,
     startGame,
@@ -92,6 +94,14 @@ export const HUD: React.FC = () => {
             <span className="font-bold text-black uppercase tracking-widest [font-family:var(--nn-mono)] flex items-center gap-2">
               <ShieldLock className="w-5 h-5" /> Shield Active{' '}
               {paywallShields > 1 ? `(x${paywallShields})` : ''}
+            </span>
+          </div>
+        )}
+
+        {now < adBlockerActiveUntil && (
+          <div className="bg-[#39FF14] border-4 border-black px-4 py-2 shadow-[8px_8px_0px_0px_var(--nn-ink)] flex items-center justify-center animate-pulse mr-4">
+            <span className="font-bold text-black uppercase tracking-widest [font-family:var(--nn-mono)] flex items-center gap-2">
+              <ShieldStar className="w-5 h-5" /> Ad-Blocker Active
             </span>
           </div>
         )}

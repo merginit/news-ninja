@@ -103,6 +103,9 @@ export async function fetchNewsFeeds(customFeedUrl?: string | null): Promise<New
         item.type = 'clickbait';
       } else if (rand < 0.35) {
         item.type = 'paywall';
+      } else if (rand < 0.40) {
+        item.type = 'ad';
+        item.title = 'AD-BLOCKER SHIELD';
       }
     }
   });

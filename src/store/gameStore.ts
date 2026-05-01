@@ -40,6 +40,8 @@ interface GameState {
   deathReason: string | null;
   freezeActiveUntil: number;
   redactedItem: { x: number; y: number; rotation: number; width: number; height: number } | null;
+  adBlockerActiveUntil: number;
+  lastAdBlockerTime: number;
   paywallShields: number;
   paywallsConsumed: number;
   factChecksUsed: number;
@@ -77,6 +79,7 @@ interface GameState {
     height: number;
   }) => void;
   clearFreeze: () => void;
+  triggerAdBlocker: () => void;
   activatePaywall: () => void;
   consumePaywall: () => boolean;
   spawnTrendingZone: (zone: TrendingZone) => void;
@@ -107,6 +110,8 @@ export const useGameStore = create<GameState>((set, get) => ({
   deathReason: null,
   freezeActiveUntil: 0,
   redactedItem: null,
+  adBlockerActiveUntil: 0,
+  lastAdBlockerTime: 0,
   paywallShields: 0,
   paywallsConsumed: 0,
   factChecksUsed: 0,
@@ -148,6 +153,8 @@ export const useGameStore = create<GameState>((set, get) => ({
         deepFakeActiveUntil: state.deepFakeActiveUntil > 0 ? state.deepFakeActiveUntil + pauseDuration : 0,
         lastDeepFakeTime: state.lastDeepFakeTime > 0 ? state.lastDeepFakeTime + pauseDuration : 0,
         freezeActiveUntil: state.freezeActiveUntil > 0 ? state.freezeActiveUntil + pauseDuration : 0,
+        adBlockerActiveUntil: state.adBlockerActiveUntil > 0 ? state.adBlockerActiveUntil + pauseDuration : 0,
+        lastAdBlockerTime: state.lastAdBlockerTime > 0 ? state.lastAdBlockerTime + pauseDuration : 0,
         lastTrendingZoneTime: state.lastTrendingZoneTime > 0 ? state.lastTrendingZoneTime + pauseDuration : 0,
         trendingZone: newTrendingZone,
         boss: newBoss,
@@ -177,6 +184,8 @@ export const useGameStore = create<GameState>((set, get) => ({
       deathReason: null,
       freezeActiveUntil: 0,
       redactedItem: null,
+      adBlockerActiveUntil: 0,
+      lastAdBlockerTime: Date.now(),
       paywallShields: 0,
       paywallsConsumed: 0,
       factChecksUsed: 0,
@@ -293,6 +302,8 @@ export const useGameStore = create<GameState>((set, get) => ({
       deathReason: null,
       freezeActiveUntil: 0,
       redactedItem: null,
+      adBlockerActiveUntil: 0,
+      lastAdBlockerTime: 0,
       paywallShields: 0,
       paywallsConsumed: 0,
       factChecksUsed: 0,
@@ -330,6 +341,15 @@ export const useGameStore = create<GameState>((set, get) => ({
     set({
       freezeActiveUntil: 0,
       redactedItem: null,
+    }),
+
+  triggerAdBlocker: () =>
+    set((state) => {
+      const now = Date.now();
+      return {
+        adBlockerActiveUntil: now + 10000,
+        lastAdBlockerTime: now,
+      };
     }),
 
   activatePaywall: () => set((state) => ({ paywallShields: state.paywallShields + 1 })),

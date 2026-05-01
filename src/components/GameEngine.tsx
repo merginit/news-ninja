@@ -1060,6 +1060,24 @@ export const GameEngine: React.FC = () => {
       ctx.restore();
     }
 
+    // Draw Ad-Blocker Visuals
+    const isAdBlocker = now < state.adBlockerActiveUntil;
+    if (isAdBlocker) {
+      ctx.save();
+      const timeRemaining = state.adBlockerActiveUntil - now;
+      const alpha = Math.min(1, timeRemaining / 1000); // Fade out at end
+      
+      const pulse = Math.abs(Math.sin(now / 200));
+      ctx.strokeStyle = `rgba(57, 255, 20, ${0.5 + pulse * 0.5 * alpha})`;
+      ctx.lineWidth = 10;
+      ctx.strokeRect(5, 5, w - 10, h - 10);
+      
+      ctx.fillStyle = `rgba(57, 255, 20, ${0.05 * alpha})`;
+      ctx.fillRect(0, 0, w, h);
+      
+      ctx.restore();
+    }
+
     // Draw Echo Chamber Fog of War
     const isEchoChamber = now < state.echoChamberActiveUntil;
     if (isEchoChamber && !isFactCheck) {
@@ -1342,6 +1360,56 @@ export const GameEngine: React.FC = () => {
     }
 
     if (item.data.type === 'bomb') {
+      const state = useGameStore.getState();
+      const isAdBlockerActive = Date.now() < state.adBlockerActiveUntil;
+
+      if (isAdBlockerActive) {
+        audio.playSlice(comboCountRef.current);
+        floatingTextsRef.current.push({
+          id: Math.random().toString(36).substring(2, 9),
+          x: item.x,
+          y: item.y - 40,
+          text: 'PHASED THROUGH!',
+          life: 1500,
+          maxLife: 1500,
+          color: '#39FF14',
+        });
+
+        item.half1 = {
+          x: item.x - 10,
+          y: item.y,
+          vx: item.vx - 3,
+          vy: item.vy,
+          rotation: item.rotation,
+          rotationSpeed: item.rotationSpeed - 5,
+          clipPath: [
+            { x: -item.width / 2, y: -item.height / 2 },
+            { x: 0, y: -item.height / 2 },
+            { x: 0, y: item.height / 2 },
+            { x: -item.width / 2, y: item.height / 2 },
+          ],
+          cx: -item.width / 4,
+          cy: 0,
+        };
+        item.half2 = {
+          x: item.x + 10,
+          y: item.y,
+          vx: item.vx + 3,
+          vy: item.vy,
+          rotation: item.rotation,
+          rotationSpeed: item.rotationSpeed + 5,
+          clipPath: [
+            { x: 0, y: -item.height / 2 },
+            { x: item.width / 2, y: -item.height / 2 },
+            { x: item.width / 2, y: item.height / 2 },
+            { x: 0, y: item.height / 2 },
+          ],
+          cx: item.width / 4,
+          cy: 0,
+        };
+        return;
+      }
+
       comboCountRef.current = 0;
       audio.playBomb();
 
@@ -1429,6 +1497,7 @@ export const GameEngine: React.FC = () => {
       }
       if (item.data.type === 'ad') {
         basePoints = 100;
+        useGameStore.getState().triggerAdBlocker();
         isPowerup = true;
       }
       if (item.data.type === 'clickbait') basePoints = 0; // clickbait itself gives 0, mini cards give points
