@@ -291,7 +291,7 @@ export const GameEngine: React.FC = () => {
       ctx.fillStyle = '#8B6508';
       ctx.font = 'bold 10px "JetBrains Mono", monospace';
       ctx.fillText('CONFIDENTIAL', 4, -16);
-      
+
       // Top Secret Stamp
       ctx.save();
       ctx.translate(width / 2, height / 2);
@@ -310,7 +310,7 @@ export const GameEngine: React.FC = () => {
       ctx.fillRect(width - 120, 4, 116, 28);
       ctx.fillStyle = '#FFD700';
       ctx.textAlign = 'right';
-      
+
       ctx.save();
       ctx.translate(width - 105, 9);
       ctx.scale(0.8, 0.8);
@@ -326,7 +326,7 @@ export const GameEngine: React.FC = () => {
       ctx.fillRect(width - 120, 4, 116, 28);
       ctx.fillStyle = '#000000';
       ctx.textAlign = 'right';
-      
+
       ctx.save();
       ctx.translate(width - 105, 9);
       ctx.scale(0.8, 0.8);
@@ -377,7 +377,7 @@ export const GameEngine: React.FC = () => {
       // Pick a random line to redact, preferring middle/later lines
       const targetLineIndex = Math.min(lines.length - 1, Math.floor(lines.length / 2) + Math.floor(Math.random() * 2));
       const targetLine = lines[targetLineIndex];
-      
+
       const rectX = 10;
       const rectY = targetLine.y - 4; // slight padding above baseline
       const rectWidth = Math.max(100, targetLine.width + 4);
@@ -385,7 +385,7 @@ export const GameEngine: React.FC = () => {
 
       ctx.fillStyle = '#000000';
       ctx.fillRect(rectX, rectY, rectWidth, rectHeight);
-      
+
       ctx.fillStyle = '#ff2a00';
       ctx.font = 'bold 16px "JetBrains Mono", monospace';
       ctx.textAlign = 'center';
@@ -525,7 +525,7 @@ export const GameEngine: React.FC = () => {
     if (now > adWaveRef.current.lastSpawn + 30000 && !adWaveRef.current.active) {
       if (Math.random() < 0.003) { // Small chance per frame
         adWaveRef.current = { active: true, count: 3 + Math.floor(Math.random() * 2), lastSpawn: now };
-        
+
         // Announce it
         if (containerRef.current) {
           const { clientWidth, clientHeight } = containerRef.current;
@@ -686,6 +686,13 @@ export const GameEngine: React.FC = () => {
     // Update projectiles
     for (let i = projectilesRef.current.length - 1; i >= 0; i--) {
       const p = projectilesRef.current[i];
+
+      // Update target to current boss position for real-time tracking
+      if (state.boss) {
+        p.targetX = state.boss.x;
+        p.targetY = state.boss.y;
+      }
+
       if (p.sourceHalf) {
         p.x = p.sourceHalf.x;
         p.y = p.sourceHalf.y;
@@ -717,17 +724,17 @@ export const GameEngine: React.FC = () => {
       } else {
         const wasVyNegative = item.vy <= 0;
         item.vy += GRAVITY * timeScale;
-        
+
         // Erratic movement for ADs
         if (item.data.type === 'ad') {
           item.vx += (Math.random() - 0.5) * 4;
           item.vx = Math.max(-12, Math.min(12, item.vx));
         }
-        
+
         // Reveal Top Secret at apex
         if (item.data.type === 'top-secret' && item.vy > 0 && wasVyNegative) {
           item.fromTopSecret = true;
-          
+
           const rand = Math.random();
           if (rand < 0.33) {
             item.data.type = 'bomb';
@@ -741,9 +748,9 @@ export const GameEngine: React.FC = () => {
           }
           item.data.source = 'WHISTLEBLOWER';
           item.canvasElement = createCardCanvas(item.data, item.width, item.height);
-          
+
           audio.playPowerup();
-          
+
           for (let p = 0; p < 15; p++) {
             particlesRef.current.push({
               x: item.x,
@@ -757,7 +764,7 @@ export const GameEngine: React.FC = () => {
             });
           }
         }
-        
+
         item.x += item.vx * timeScale;
         item.y += item.vy * timeScale;
         item.rotation += item.rotationSpeed * timeScale;
@@ -869,7 +876,7 @@ export const GameEngine: React.FC = () => {
       bg.addColorStop(1, color3);
       bgCacheRef.current = { w, h, level: currentLevel, gradient: bg };
     }
-    
+
     ctx.fillStyle = bgCacheRef.current.gradient!;
     ctx.fillRect(0, 0, w, h);
 
@@ -941,7 +948,7 @@ export const GameEngine: React.FC = () => {
         ctx.rotate((half.rotation * Math.PI) / 180);
 
         ctx.translate(-half.cx, -half.cy);
-        
+
         if (isDeepFake) {
           ctx.scale(-1, 1);
         }
@@ -1101,15 +1108,15 @@ export const GameEngine: React.FC = () => {
       ctx.save();
       const timeRemaining = state.adBlockerActiveUntil - now;
       const alpha = Math.min(1, timeRemaining / 1000); // Fade out at end
-      
+
       const pulse = Math.abs(Math.sin(now / 200));
       ctx.strokeStyle = `rgba(57, 255, 20, ${0.5 + pulse * 0.5 * alpha})`;
       ctx.lineWidth = 10;
       ctx.strokeRect(5, 5, w - 10, h - 10);
-      
+
       ctx.fillStyle = `rgba(57, 255, 20, ${0.05 * alpha})`;
       ctx.fillRect(0, 0, w, h);
-      
+
       ctx.restore();
     }
 
@@ -1298,12 +1305,12 @@ export const GameEngine: React.FC = () => {
     if (state.isPaused) {
       ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
       ctx.fillRect(0, 0, w, h);
-      
+
       ctx.fillStyle = '#ffffff';
       ctx.font = '900 80px "Anton", sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      
+
       if (isDeepFake) {
         ctx.save();
         ctx.translate(w, 0);
@@ -1324,20 +1331,35 @@ export const GameEngine: React.FC = () => {
     const p1 = trailRef.current[trailRef.current.length - 2];
     const p2 = trailRef.current[trailRef.current.length - 1];
 
+    const state = useGameStore.getState();
+    const isDeepFake = Date.now() < state.deepFakeActiveUntil;
+
     activeNewsRef.current.forEach((item) => {
       if (item.sliced) return;
 
-      const left = item.x - item.width / 2;
-      const right = item.x + item.width / 2;
-      const top = item.y - item.height / 2;
-      const bottom = item.y + item.height / 2;
-
+      const hw = item.width / 2;
+      const hh = item.height / 2;
       const padding = 20;
-      const hit = lineIntersectsRect(p1, p2, {
-        left: left - padding,
-        right: right + padding,
-        top: top - padding,
-        bottom: bottom + padding,
+
+      const tx1 = p1.x - item.x;
+      const ty1 = p1.y - item.y;
+      const tx2 = p2.x - item.x;
+      const ty2 = p2.y - item.y;
+
+      // When Deep Fake is active, the visual rotation is effectively mirrored
+      const effectiveRotation = isDeepFake ? -item.rotation : item.rotation;
+      const rad = -(effectiveRotation * Math.PI) / 180;
+      const cos = Math.cos(rad);
+      const sin = Math.sin(rad);
+
+      const lp1 = { x: tx1 * cos - ty1 * sin, y: tx1 * sin + ty1 * cos, time: p1.time };
+      const lp2 = { x: tx2 * cos - ty2 * sin, y: tx2 * sin + ty2 * cos, time: p2.time };
+
+      const hit = lineIntersectsRect(lp1, lp2, {
+        left: -hw - padding,
+        right: hw + padding,
+        top: -hh - padding,
+        bottom: hh + padding,
       });
 
       if (hit) {
@@ -1574,7 +1596,11 @@ export const GameEngine: React.FC = () => {
       const tx2 = p2.x - item.x;
       const ty2 = p2.y - item.y;
 
-      const rad = -(item.rotation * Math.PI) / 180;
+      const isDeepFake = Date.now() < state.deepFakeActiveUntil;
+
+      // When Deep Fake is active, the visual rotation is effectively mirrored
+      const effectiveRotation = isDeepFake ? -item.rotation : item.rotation;
+      const rad = -(effectiveRotation * Math.PI) / 180;
       const cos = Math.cos(rad);
       const sin = Math.sin(rad);
 
@@ -1585,8 +1611,8 @@ export const GameEngine: React.FC = () => {
 
       if (item.hasRetraction && item.retractionRect) {
         const hitPostIt = lineIntersectsRect(
-          { x: lx1, y: ly1, time: 0 },
-          { x: lx2, y: ly2, time: 0 },
+          { x: lx1, y: ly1 },
+          { x: lx2, y: ly2 },
           item.retractionRect
         );
 
@@ -1915,24 +1941,39 @@ export const GameEngine: React.FC = () => {
   };
 
   const lineIntersectsRect = (
-    p1: Point,
-    p2: Point,
+    p1: { x: number; y: number },
+    p2: { x: number; y: number },
     rect: { left: number; right: number; top: number; bottom: number }
   ) => {
-    const isInside = (p: Point) =>
-      p.x >= rect.left && p.x <= rect.right && p.y >= rect.top && p.y <= rect.bottom;
-    if (isInside(p1) || isInside(p2)) return true;
+    // Liang-Barsky line clipping: true if any part of the segment is inside the rect
+    const dx = p2.x - p1.x;
+    const dy = p2.y - p1.y;
+    const edges = [
+      { p: -dx, q: p1.x - rect.left },
+      { p: dx, q: rect.right - p1.x },
+      { p: -dy, q: p1.y - rect.top },
+      { p: dy, q: rect.bottom - p1.y },
+    ];
 
-    const minX = Math.min(p1.x, p2.x);
-    const maxX = Math.max(p1.x, p2.x);
-    const minY = Math.min(p1.y, p2.y);
-    const maxY = Math.max(p1.y, p2.y);
+    let tMin = 0;
+    let tMax = 1;
 
-    if (maxX < rect.left || minX > rect.right || maxY < rect.top || minY > rect.bottom) {
-      return false;
+    for (const { p, q } of edges) {
+      if (Math.abs(p) < 1e-10) {
+        if (q < 0) return false;
+      } else {
+        const t = q / p;
+        if (p < 0) {
+          if (t > tMax) return false;
+          if (t > tMin) tMin = t;
+        } else {
+          if (t < tMin) return false;
+          if (t < tMax) tMax = t;
+        }
+      }
     }
 
-    return true;
+    return tMin <= tMax;
   };
 
   const loop = (time: number) => {
