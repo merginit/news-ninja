@@ -92,7 +92,7 @@ export const GameEngine: React.FC = () => {
   const particlesRef = useRef<Particle[]>([]);
   const trailRef = useRef<Point[]>([]);
   const projectilesRef = useRef<
-    { x: number; y: number; targetX: number; targetY: number; progress: number }[]
+    { x: number; y: number; targetX: number; targetY: number; progress: number; sourceHalf?: any; damage: number }[]
   >([]);
   const isPointerDownRef = useRef(false);
   const comboCountRef = useRef(0);
@@ -663,10 +663,14 @@ export const GameEngine: React.FC = () => {
     // Update projectiles
     for (let i = projectilesRef.current.length - 1; i >= 0; i--) {
       const p = projectilesRef.current[i];
+      if (p.sourceHalf) {
+        p.x = p.sourceHalf.x;
+        p.y = p.sourceHalf.y;
+      }
       p.progress += 0.05 * timeScale;
       if (p.progress >= 1) {
         projectilesRef.current.splice(i, 1);
-        if (state.boss && state.boss.health > 0) damageBoss(1);
+        if (state.boss && state.boss.health > 0) damageBoss(p.damage || 1);
       }
     }
 
@@ -1292,6 +1296,30 @@ export const GameEngine: React.FC = () => {
   const sliceItem = (item: ActiveNews, p1: Point, p2: Point) => {
     item.sliced = true;
 
+    const tryShootProjectiles = () => {
+      const state = useGameStore.getState();
+      if (state.boss && (item.data.type === 'real' || item.data.type === 'breaking') && item.half1 && item.half2) {
+        projectilesRef.current.push({
+          x: item.half1.x,
+          y: item.half1.y,
+          targetX: state.boss.x,
+          targetY: state.boss.y,
+          progress: 0,
+          sourceHalf: item.half1,
+          damage: 0.5,
+        });
+        projectilesRef.current.push({
+          x: item.half2.x,
+          y: item.half2.y,
+          targetX: state.boss.x,
+          targetY: state.boss.y,
+          progress: 0,
+          sourceHalf: item.half2,
+          damage: 0.5,
+        });
+      }
+    };
+
     let color = '#000000';
     if (item.data.type === 'bomb') color = '#ff2a00';
     if (item.data.type === 'breaking') color = '#ffb800'; // Gold particles
@@ -1390,15 +1418,6 @@ export const GameEngine: React.FC = () => {
       let isPowerup = false;
 
       const state = useGameStore.getState();
-      if (state.boss && (item.data.type === 'real' || item.data.type === 'breaking')) {
-        projectilesRef.current.push({
-          x: item.x,
-          y: item.y,
-          targetX: state.boss.x,
-          targetY: state.boss.y,
-          progress: 0,
-        });
-      }
 
       if (item.data.type === 'breaking') {
         basePoints = 50;
@@ -1611,6 +1630,7 @@ export const GameEngine: React.FC = () => {
           cx: hw / 2,
           cy: 0,
         };
+        tryShootProjectiles();
         return;
       }
 
@@ -1784,6 +1804,7 @@ export const GameEngine: React.FC = () => {
         cx: cx2,
         cy: cy2,
       };
+      tryShootProjectiles();
     }
   };
 
