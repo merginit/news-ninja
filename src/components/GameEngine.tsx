@@ -411,7 +411,8 @@ export const GameEngine: React.FC = () => {
 
     const now = Date.now();
     const isFactCheck = now < useGameStore.getState().factCheckActiveUntil;
-    const currentSpawnInterval = isFactCheck ? SPAWN_INTERVAL / 0.3 : SPAWN_INTERVAL;
+    const isNewsFlash = now < useGameStore.getState().newsFlashActiveUntil;
+    const currentSpawnInterval = isFactCheck ? SPAWN_INTERVAL / 0.3 : (isNewsFlash ? SPAWN_INTERVAL / 3.0 : SPAWN_INTERVAL);
 
     if (currentTime - lastSpawnTimeRef.current > currentSpawnInterval) {
       const newsData = popNews();
@@ -459,7 +460,8 @@ export const GameEngine: React.FC = () => {
     const now = Date.now();
     const state = useGameStore.getState();
     const isFactCheck = now < state.factCheckActiveUntil;
-    const timeScale = isFactCheck ? 0.3 : 1.0;
+    const isNewsFlash = now < state.newsFlashActiveUntil;
+    const timeScale = isFactCheck ? 0.3 : (isNewsFlash ? 0.6 : 1.0);
 
     // Echo Chamber random trigger (cooldown 20s, duration 8s)
     if (now > state.lastEchoChamberTime + 20000 && now > state.echoChamberActiveUntil) {
@@ -473,6 +475,25 @@ export const GameEngine: React.FC = () => {
     if (now > state.lastDeepFakeTime + 25000 && now > state.deepFakeActiveUntil && !isDeepFake) {
       if (Math.random() < 0.004) {
         state.triggerDeepFake();
+      }
+    }
+
+    // News Flash random trigger (cooldown 35s, duration 5s)
+    if (now > state.lastNewsFlashTime + 35000 && !isNewsFlash) {
+      if (Math.random() < 0.003) {
+        state.triggerNewsFlash();
+        if (containerRef.current) {
+          const { clientWidth, clientHeight } = containerRef.current;
+          floatingTextsRef.current.push({
+            id: Math.random().toString(36).substring(2, 9),
+            x: clientWidth / 2,
+            y: clientHeight / 2,
+            text: 'NEWS FLASH! 3X SPAWN RATE!',
+            life: 2000,
+            maxLife: 2000,
+            color: '#ff2a00',
+          });
+        }
       }
     }
 
@@ -806,6 +827,7 @@ export const GameEngine: React.FC = () => {
     const now = state.isPaused && state.pauseStartTime ? state.pauseStartTime : Date.now();
     const isFactCheck = now < state.factCheckActiveUntil;
     const isDeepFake = now < state.deepFakeActiveUntil;
+    const isNewsFlash = now < state.newsFlashActiveUntil;
 
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, w, h);
@@ -880,6 +902,17 @@ export const GameEngine: React.FC = () => {
       ctx.textBaseline = 'middle';
       ctx.fillText('FACT CHECKING', 0, 0);
       ctx.restore();
+    }
+
+    if (isNewsFlash) {
+      // Pulsing red overlay
+      ctx.fillStyle = `rgba(255, 42, 0, ${0.15 + Math.sin(now / 150) * 0.1})`;
+      ctx.fillRect(0, 0, w, h);
+
+      // Red border
+      ctx.strokeStyle = `rgba(255, 42, 0, ${0.5 + Math.sin(now / 150) * 0.3})`;
+      ctx.lineWidth = 12;
+      ctx.strokeRect(6, 6, w - 12, h - 12);
     }
 
     // Draw Projectiles

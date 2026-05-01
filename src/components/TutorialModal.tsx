@@ -211,6 +211,21 @@ const slides = [
       </div>
     ),
   },
+  {
+    title: 'News Flash',
+    description:
+      'A sudden Breaking News mode where cards spawn at 3x the normal rate for a few seconds! Time slows down slightly, giving you the perfect chance to build a massive Godlike Combo.',
+    card: (
+      <div className="w-full max-w-xs h-32 bg-white border-4 border-[#ff2a00] relative p-4 flex flex-col items-center justify-center animate-pulse shadow-[0_0_20px_rgba(255,42,0,0.5)]">
+        <div className="text-[#ff2a00] font-black text-2xl tracking-widest uppercase flex items-center gap-2">
+          <IconLightning className="w-8 h-8" /> NEWS FLASH
+        </div>
+        <div className="text-[#ff2a00] font-bold text-sm mt-2">
+          3X SPAWN RATE ACTIVE
+        </div>
+      </div>
+    ),
+  },
 ];
 
 export const TutorialModal: React.FC<TutorialModalProps> = ({ onClose }) => {

@@ -35,6 +35,8 @@ interface GameState {
   lastEchoChamberTime: number;
   deepFakeActiveUntil: number;
   lastDeepFakeTime: number;
+  newsFlashActiveUntil: number;
+  lastNewsFlashTime: number;
   highestCombo: number;
   clickbaitsFallenFor: number;
   deathReason: string | null;
@@ -68,6 +70,7 @@ interface GameState {
   activateFactCheck: () => void;
   triggerEchoChamber: () => void;
   triggerDeepFake: () => void;
+  triggerNewsFlash: () => void;
   updateHighestCombo: (combo: number) => void;
   incrementClickbaits: () => void;
   setDeathReason: (reason: string) => void;
@@ -105,6 +108,8 @@ export const useGameStore = create<GameState>((set, get) => ({
   lastEchoChamberTime: 0,
   deepFakeActiveUntil: 0,
   lastDeepFakeTime: 0,
+  newsFlashActiveUntil: 0,
+  lastNewsFlashTime: 0,
   highestCombo: 0,
   clickbaitsFallenFor: 0,
   deathReason: null,
@@ -152,6 +157,8 @@ export const useGameStore = create<GameState>((set, get) => ({
         lastEchoChamberTime: state.lastEchoChamberTime > 0 ? state.lastEchoChamberTime + pauseDuration : 0,
         deepFakeActiveUntil: state.deepFakeActiveUntil > 0 ? state.deepFakeActiveUntil + pauseDuration : 0,
         lastDeepFakeTime: state.lastDeepFakeTime > 0 ? state.lastDeepFakeTime + pauseDuration : 0,
+        newsFlashActiveUntil: state.newsFlashActiveUntil > 0 ? state.newsFlashActiveUntil + pauseDuration : 0,
+        lastNewsFlashTime: state.lastNewsFlashTime > 0 ? state.lastNewsFlashTime + pauseDuration : 0,
         freezeActiveUntil: state.freezeActiveUntil > 0 ? state.freezeActiveUntil + pauseDuration : 0,
         adBlockerActiveUntil: state.adBlockerActiveUntil > 0 ? state.adBlockerActiveUntil + pauseDuration : 0,
         lastAdBlockerTime: state.lastAdBlockerTime > 0 ? state.lastAdBlockerTime + pauseDuration : 0,
@@ -179,6 +186,8 @@ export const useGameStore = create<GameState>((set, get) => ({
       lastEchoChamberTime: Date.now(),
       deepFakeActiveUntil: 0,
       lastDeepFakeTime: Date.now(),
+      newsFlashActiveUntil: 0,
+      lastNewsFlashTime: Date.now(),
       highestCombo: 0,
       clickbaitsFallenFor: 0,
       deathReason: null,
@@ -297,6 +306,8 @@ export const useGameStore = create<GameState>((set, get) => ({
       lastEchoChamberTime: 0,
       deepFakeActiveUntil: 0,
       lastDeepFakeTime: 0,
+      newsFlashActiveUntil: 0,
+      lastNewsFlashTime: 0,
       highestCombo: 0,
       clickbaitsFallenFor: 0,
       deathReason: null,
@@ -328,6 +339,15 @@ export const useGameStore = create<GameState>((set, get) => ({
       return {
         deepFakeActiveUntil: now + 10000,
         lastDeepFakeTime: now,
+      };
+    }),
+
+  triggerNewsFlash: () =>
+    set((state) => {
+      const now = Date.now();
+      return {
+        newsFlashActiveUntil: now + 5000,
+        lastNewsFlashTime: now,
       };
     }),
 
