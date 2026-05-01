@@ -7,6 +7,11 @@ import IconFire from '~icons/mdi/fire';
 import IconLock from '~icons/mdi/shield-lock';
 import IconBomb from '~icons/mdi/bomb';
 import IconShieldStar from '~icons/mdi/shield-star';
+import IconTrendingUp from '~icons/mdi/trending-up';
+import IconIncognito from '~icons/mdi/incognito';
+import IconNoteEdit from '~icons/mdi/note-edit';
+import IconSkull from '~icons/mdi/skull';
+import IconFileQuestion from '~icons/mdi/file-question';
 
 interface TutorialModalProps {
   onClose: () => void;
@@ -126,6 +131,82 @@ const slides = [
       <div className="w-full max-w-xs h-32 bg-black border-4 border-[#00ffff] relative p-4 flex items-center justify-center shadow-[0_0_20px_rgba(0,255,255,0.5)]">
         <div className="text-[#00ffff] font-black text-2xl tracking-widest uppercase flex items-center gap-2 animate-pulse">
           <IconLightning className="w-8 h-8" /> Fact Check
+        </div>
+      </div>
+    ),
+  },
+  {
+    title: 'Classified Information',
+    description:
+      'Mysterious documents that reveal their true nature at the peak of their flight. They might contain a Massive Leak, a Shield, or a deadly Satire Bomb! Wait to see what they are or slice them early.',
+    card: (
+      <div className="w-64 h-32 bg-[#E6C280] border-4 border-black relative p-3 flex flex-col justify-between shadow-[8px_8px_0px_0px_rgba(0,0,0,0.2)]">
+        <div className="border-b-2 border-black pb-1 mb-2 flex justify-between items-center">
+          <span className="text-black font-bold text-xs font-mono uppercase">Anonymous</span>
+          <div className="bg-black text-[#E6C280] px-2 py-0.5 flex items-center gap-1 text-xs font-bold">
+            <IconFileQuestion /> TOP SECRET
+          </div>
+        </div>
+        <div className="font-bold text-lg font-serif leading-tight">
+          CLASSIFIED INFORMATION
+        </div>
+      </div>
+    ),
+  },
+  {
+    title: 'Trending Zone',
+    description:
+      'A glowing blue holographic zone that randomly appears on your screen. Any news sliced inside this zone awards 3x points! Surf the trend to rack up massive combos.',
+    card: (
+      <div className="w-full max-w-xs h-32 border-4 border-[#00ffff] border-dashed relative p-4 flex items-center justify-center bg-[rgba(0,255,255,0.1)]">
+        <div className="text-[#00ffff] font-black text-2xl tracking-widest uppercase flex items-center gap-2 animate-pulse">
+          <IconTrendingUp className="w-8 h-8" /> TRENDING TOPIC
+        </div>
+      </div>
+    ),
+  },
+  {
+    title: 'Deep Fakes',
+    description:
+      'A vicious cyber-attack that visually inverts your entire screen and controls! Trust your instincts and keep slicing carefully until the system recalibrates.',
+    card: (
+      <div className="w-full max-w-xs h-32 bg-white border-4 border-black relative p-4 flex items-center justify-center invert">
+        <div className="text-[#ff2a00] font-black text-2xl tracking-widest uppercase flex flex-col items-center gap-2">
+          <div className="flex items-center gap-2"><IconIncognito className="w-8 h-8" /> DEEP FAKE</div>
+          <div className="text-black text-sm">SENSORS INVERTED</div>
+        </div>
+      </div>
+    ),
+  },
+  {
+    title: 'Retractions',
+    description:
+      'Sometimes news is published with errors. Look for the yellow REDACTED sticky note on articles. Slice directly through the note to catch the retraction for bonus points, otherwise you lose points!',
+    card: (
+      <div className="w-64 h-32 bg-[#f4f0e6] border-4 border-black relative p-3 flex flex-col justify-between shadow-[8px_8px_0px_0px_rgba(0,0,0,0.2)]">
+        <div className="border-b-2 border-black pb-1 mb-2">
+          <span className="text-blue-600 font-bold text-xs font-mono uppercase">Local News</span>
+        </div>
+        <div className="font-bold text-lg font-serif leading-tight">
+          Mayor Opens New Dog Park
+        </div>
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-[#ffeb3b] text-black font-bold font-mono text-sm px-2 py-1 rotate-[-10deg] shadow-md border border-black flex items-center gap-1">
+          <IconNoteEdit /> REDACTED
+        </div>
+      </div>
+    ),
+  },
+  {
+    title: 'Hostile Takeover',
+    description:
+      'A massive corporate boss attempting to buy out your newsroom! It will fire projectiles at you. Slice the projectiles to reflect them back and deplete its health bar to survive.',
+    card: (
+      <div className="w-full max-w-xs h-32 bg-[#ff2a00] border-[6px] border-black relative p-4 flex flex-col items-center justify-center shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
+        <div className="text-white font-black text-2xl tracking-widest uppercase flex items-center gap-2 mb-2">
+          <IconSkull className="w-8 h-8" /> HOSTILE TAKEOVER
+        </div>
+        <div className="w-3/4 h-3 bg-black relative">
+           <div className="absolute top-0.5 left-0.5 bottom-0.5 w-[70%] bg-[#22c55e]"></div>
         </div>
       </div>
     ),
