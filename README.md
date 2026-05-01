@@ -1,6 +1,6 @@
 # News Ninja
 
-> base code written by Trae SOLO
+> base code written by Trae SOLO; enhanced with Antigravity
 
 ![website](website.png)
 
